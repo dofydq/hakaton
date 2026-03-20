@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+sqlalchemy
+asyncpg
+pydantic
+pydantic-settings
+alembic
+python-docx
+python-multipart
+passlib
+bcrypt==3.2.2
+PyJWT
+email-validator
+qrcode[pil]

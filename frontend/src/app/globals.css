@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply min-h-screen transition-colors duration-500 bg-gradient-light dark:bg-gradient-dark text-slate-900 dark:text-slate-100;
+  }
+}

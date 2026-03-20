@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: profdnk_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-profdnk_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-profdnk_password}
+      POSTGRES_DB: ${POSTGRES_DB:-profdnk_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-profdnk_user} -d ${POSTGRES_DB:-profdnk_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: profdnk_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-profdnk_user}:${POSTGRES_PASSWORD:-profdnk_password}@db:5432/${POSTGRES_DB:-profdnk_db}
+      # Добавь другие переменные окружения по необходимости
+    volumes:
+      - ./backend:/app # Для hot-reload в разработке
+    depends_on:
+      db:
+        condition: service_healthy
+    # Команда для запуска в dev-режиме (ожидается, что uvicorn установлен)
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: profdnk_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000 # Доступ к backend из браузера
+    volumes:
+      - ./frontend:/app # Для hot-reload
+      - /app/node_modules # Чтобы не затирать модули внутри контейнера
+      - /app/.next 
+    depends_on:
+      - backend
+    # Команда для dev-сервера Next.js
+    command: npm run dev
+
+volumes:
+  postgres_data:
