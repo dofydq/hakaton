@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 import { GlassButton } from '@/components/ui/GlassButton';
 
 export default function RegisterPage() {
@@ -97,7 +98,7 @@ export default function RegisterPage() {
           </div>
           {error && <p className="text-red-500 text-sm text-center">{error}</p>}
           <GlassButton type="submit" className="w-full mt-2" disabled={loading}>
-            {loading ? 'Создание...' : 'Создать аккаунт'}
+            {loading ? <span className="flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={20} /> Создание...</span> : 'Создать аккаунт'}
           </GlassButton>
         </form>
         <div className="mt-6 text-center">

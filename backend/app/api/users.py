@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_user
+from app.services.storage import storage_service
 from app.core.utils import generate_qr_code
 from app.db.database import get_db
 from app.models.models import User
@@ -56,17 +57,7 @@ async def upload_avatar(
     Загрузка и сохранение аватара профиля в директорию static/avatars.
     Возвращает URL загруженного изображения.
     """
-    upload_dir = "static/avatars"
-    os.makedirs(upload_dir, exist_ok=True)
-    
-    file_extension = file.filename.split(".")[-1]
-    file_name = f"avatar_{current_user.id}_{os.urandom(4).hex()}.{file_extension}"
-    file_path = os.path.join(upload_dir, file_name)
-    
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-        
-    avatar_url = f"http://localhost:8000/static/avatars/{file_name}"
+    avatar_url = await storage_service.save_file(file, current_user.id)
     
     current_user.avatar_url = avatar_url
     db.add(current_user)

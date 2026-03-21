@@ -15,7 +15,7 @@ app = FastAPI(title="ПрофДНК API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,8 +28,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.on_event("startup")
 async def startup():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    pass
+    # async with engine.begin() as conn:
+    #     await conn.run_sync(Base.metadata.create_all)
 
 # Подключаем роутеры
 app.include_router(auth_router)

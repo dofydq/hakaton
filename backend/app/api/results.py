@@ -28,6 +28,13 @@ async def save_test_result(
     if not test or not test.is_active:
         raise HTTPException(status_code=404, detail="Тест не найден")
         
+    if test.max_submissions is not None:
+        count_query = select(func.count(TestResult.id)).where(TestResult.test_id == test.id)
+        count_res = await db.execute(count_query)
+        current_count = count_res.scalar_one()
+        if current_count >= test.max_submissions:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Превышен лимит прохождений для этого теста")
+
     logic_tree = test.schemas[0].logic_tree_json if test.schemas else []
     
     total_score = 0
@@ -96,13 +103,19 @@ async def save_test_result(
         "finished_at": datetime.utcnow().isoformat()
     }
 
+    test_snapshot_data = {
+        "logic_tree": logic_tree,
+        "report_config": test.report_config if test.report_config is not None else {"show_table": True, "show_chart": False, "show_interpretation": True}
+    }
+
     new_result = TestResult(
         test_id=test.id,
         user_id=current_user.id if current_user else None,
         guest_email=data.client_email if not current_user else None,
         client_fio=data.client_fio,
         answers=answers_with_meta,
-        total_points=percentage
+        total_points=percentage,
+        test_snapshot=test_snapshot_data
     )
     db.add(new_result)
     await db.commit()
@@ -114,23 +127,35 @@ async def save_test_result(
 @router.get("/test/{test_id}")
 async def get_results_for_test(
     test_id: int,
+    skip: int = 0,
+    limit: int = 10,
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Возвращает все результаты теста по его ID.
+    Возвращает результаты теста по его ID с пагинацией.
     """
-    query = select(TestResult).where(TestResult.test_id == test_id).order_by(TestResult.created_at.desc())
+    count_query = select(func.count(TestResult.id)).where(TestResult.test_id == test_id)
+    count_res = await db.execute(count_query)
+    total_count = count_res.scalar_one()
+
+    query = select(TestResult).where(TestResult.test_id == test_id).order_by(TestResult.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     results = result.scalars().all()
-    return [
-        {
-            "id": str(r.id),
-            "client_fio": r.client_fio,
-            "total_points": r.total_points,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
-        }
-        for r in results
-    ]
+    
+    return {
+        "items": [
+            {
+                "id": str(r.id),
+                "client_fio": r.client_fio,
+                "total_points": r.total_points,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in results
+        ],
+        "total": total_count,
+        "skip": skip,
+        "limit": limit
+    }
 
 
 @router.get("/counts")

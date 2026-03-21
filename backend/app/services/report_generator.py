@@ -34,7 +34,7 @@ def add_blue_heading(doc, text):
     pBdr.append(bottom)
     pPr.append(pBdr)
 
-def generate_docx_report(user_name: str, test_title: str, score: int, answers_list: list, category_scores: dict = None) -> io.BytesIO:
+def generate_docx_report(user_name: str, test_title: str, score: int, answers_list: list, category_scores: dict = None, report_config: dict = None) -> io.BytesIO:
     doc = Document()
     
     style = doc.styles['Normal']
@@ -102,31 +102,35 @@ def generate_docx_report(user_name: str, test_title: str, score: int, answers_li
     p_score.add_run("Итоговое соответствие: ").bold = True
     p_score.add_run(f"{score}%")
     
-    if category_scores and len(category_scores) > 0:
+    if report_config is None:
+        report_config = {"show_table": True, "show_chart": False, "show_interpretation": True}
+
+    if report_config.get("show_table", True):
+        if category_scores and len(category_scores) > 0:
+            doc.add_paragraph()
+            add_blue_heading(doc, "Профиль компетенций")
+            
+            cat_table = doc.add_table(rows=1, cols=2)
+            cat_table.style = 'Table Grid'
+            hdr_cells = cat_table.rows[0].cells
+            hdr_cells[0].text = 'Категория / Секция'
+            hdr_cells[1].text = 'Уровень (%)'
+            
+            for cell in hdr_cells:
+                tcPr = cell._tc.get_or_add_tcPr()
+                shd = OxmlElement('w:shd')
+                shd.set(qn('w:val'), 'clear')
+                shd.set(qn('w:color'), 'auto')
+                shd.set(qn('w:fill'), 'EAEAEA')
+                tcPr.append(shd)
+                
+            for cat, cat_score in category_scores.items():
+                row_cells = cat_table.add_row().cells
+                row_cells[0].text = str(cat)
+                row_cells[1].text = f"{cat_score}%"
+                
         doc.add_paragraph()
-        add_blue_heading(doc, "Профиль компетенций")
-        
-        cat_table = doc.add_table(rows=1, cols=2)
-        cat_table.style = 'Table Grid'
-        hdr_cells = cat_table.rows[0].cells
-        hdr_cells[0].text = 'Категория / Секция'
-        hdr_cells[1].text = 'Уровень (%)'
-        
-        for cell in hdr_cells:
-            tcPr = cell._tc.get_or_add_tcPr()
-            shd = OxmlElement('w:shd')
-            shd.set(qn('w:val'), 'clear')
-            shd.set(qn('w:color'), 'auto')
-            shd.set(qn('w:fill'), 'EAEAEA')
-            tcPr.append(shd)
-            
-        for cat, cat_score in category_scores.items():
-            row_cells = cat_table.add_row().cells
-            row_cells[0].text = str(cat)
-            row_cells[1].text = f"{cat_score}%"
-            
-    doc.add_paragraph()
-    add_blue_heading(doc, "Ответы пользователя")
+        add_blue_heading(doc, "Ответы пользователя")
     
     # Таблица
     table = doc.add_table(rows=1, cols=2)
@@ -163,15 +167,16 @@ def generate_docx_report(user_name: str, test_title: str, score: int, answers_li
         shd.set(qn('w:fill'), 'EAEAEA')
         tcPr.append(shd)
     
-    for ans in answers_list:
-        row_cells = table.add_row().cells
-        row_cells[0].text = str(ans.get('question', ''))
-        row_cells[1].text = str(ans.get('answer', ''))
+        for ans in answers_list:
+            row_cells = table.add_row().cells
+            row_cells[0].text = str(ans.get('question', ''))
+            row_cells[1].text = str(ans.get('answer', ''))
         
     
     # Интерпретация
-    doc.add_paragraph()
-    add_blue_heading(doc, "Краткое заключение")
+    if report_config.get("show_interpretation", True):
+        doc.add_paragraph()
+        add_blue_heading(doc, "Краткое заключение")
     
     if score > 70:
         interpretation = "Высокий уровень соответствия профилю. Кандидат обладает выраженными склонностями и компетенциями в данной области."

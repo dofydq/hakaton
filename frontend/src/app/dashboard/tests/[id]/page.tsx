@@ -14,6 +14,9 @@ export default function TestResultsPage() {
 
   const [test, setTest] = useState<any>(null);
   const [results, setResults] = useState<any[]>([]);
+  const [totalResults, setTotalResults] = useState(0);
+  const [page, setPage] = useState(1);
+  const limit = 10;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showStats, setShowStats] = useState(false);
@@ -31,16 +34,22 @@ export default function TestResultsPage() {
     return true;
   });
 
-  const fetchResults = useCallback(async (showToast = false) => {
+  const fetchResults = useCallback(async (showToast = false, currentPage = 1) => {
     try {
       if (showToast) setRefreshing(true);
+      const skip = (currentPage - 1) * limit;
       const [testRes, resultsRes] = await Promise.all([
         api.get(`/tests/${id}`),
-        api.get(`/results/test/${id}`),
+        api.get(`/results/test/${id}?skip=${skip}&limit=${limit}`),
       ]);
-      const sortedResults = resultsRes.data.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+      const data = resultsRes.data;
+      const fetchedResults = data.items || [];
+      const sortedResults = fetchedResults.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+      
       setTest(testRes.data);
       setResults(sortedResults);
+      setTotalResults(data.total || 0);
+
       if (showToast) toast.success('Данные обновлены!');
     } catch (err) {
       console.error(err);
@@ -49,11 +58,11 @@ export default function TestResultsPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [id]);
+  }, [id, limit]);
 
   useEffect(() => {
-    fetchResults();
-  }, [fetchResults]);
+    fetchResults(false, page);
+  }, [fetchResults, page]);
 
   const handleDownloadReport = async (resultId: string) => {
     const loadingToast = toast.loading('Отчет формируется...');
@@ -108,7 +117,7 @@ export default function TestResultsPage() {
 
           {/* Кнопка обновить */}
           <GlassButton
-            onClick={() => fetchResults(true)}
+            onClick={() => fetchResults(true, page)}
             disabled={refreshing}
             className="!py-3 !px-6 font-bold flex items-center gap-2 shrink-0 z-10 border-violet-500/30 bg-violet-500/10 hover:bg-violet-500/25 text-violet-700 dark:text-violet-300 rounded-2xl"
           >
@@ -137,7 +146,7 @@ export default function TestResultsPage() {
               className="grid grid-cols-2 sm:grid-cols-3 gap-4"
             >
               {[
-                { icon: Users, label: 'Всего прошли', value: results.length, color: 'blue' },
+                { icon: Users, label: 'Всего прошли', value: totalResults, color: 'blue' },
                 { icon: Star, label: 'Средний балл', value: results.length > 0 ? Math.round(results.reduce((a, r) => a + r.total_points, 0) / results.length) : '—', color: 'amber' },
                 { icon: Star, label: 'Макс. балл', value: results.length > 0 ? Math.max(...results.map(r => r.total_points)) : '—', color: 'green' },
               ].map(({ icon: Icon, label, value, color }) => (
@@ -157,7 +166,7 @@ export default function TestResultsPage() {
             <h2 className="text-2xl font-bold flex items-center gap-3">
               <Users size={24} className="text-violet-500" />
               Список прошедших
-              <span className="opacity-50 text-xl font-normal ml-1">({results.length})</span>
+              <span className="opacity-50 text-xl font-normal ml-1">({totalResults})</span>
             </h2>
           </div>
 
@@ -291,6 +300,29 @@ export default function TestResultsPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Пагинация */}
+          {totalResults > limit && (
+            <div className="p-4 sm:p-6 border-t border-white/20 dark:border-white/10 flex justify-center items-center gap-4">
+              <GlassButton
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="!py-2 !px-4 text-sm font-bold disabled:opacity-50"
+              >
+                Назад
+              </GlassButton>
+              <span className="font-medium text-sm lg:text-base opacity-80">
+                Страница {page} из {Math.ceil(totalResults / limit)}
+              </span>
+              <GlassButton
+                onClick={() => setPage(p => Math.min(Math.ceil(totalResults / limit), p + 1))}
+                disabled={page >= Math.ceil(totalResults / limit)}
+                className="!py-2 !px-4 text-sm font-bold disabled:opacity-50"
+              >
+                Вперед
+              </GlassButton>
+            </div>
+          )}
         </div>
       </motion.div>
     </main>

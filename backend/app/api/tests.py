@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.auth import get_current_user
+from app.api.auth import get_current_user, get_current_psychologist
 from app.db.database import get_db
 from app.models.models import Formula, Test, TestSchema, User
 from app.schemas.schemas import TestCreateFull, TestResponseFull
@@ -109,7 +109,7 @@ def validate_test_payload(title: str, logic_tree_json) -> None:
 @router.post("/", response_model=TestResponseFull, status_code=status.HTTP_201_CREATED)
 async def create_test(
     data: TestCreateFull,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_psychologist)],
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -122,6 +122,7 @@ async def create_test(
         title=data.title,
         description=data.description,
         access_settings_json=data.access_settings_json,
+        report_config=data.report_config,
         is_active=True
     )
     db.add(test)
@@ -142,6 +143,7 @@ async def create_test(
         description=test.description,
         is_active=test.is_active,
         access_settings_json=test.access_settings_json,
+        report_config=test.report_config,
         logic_tree_json=test_schema.logic_tree_json,
         calculation_rules_json=formula.calculation_rules_json
     )
@@ -181,6 +183,7 @@ async def get_my_tests(
             description=test.description,
             is_active=test.is_active,
             access_settings_json=test.access_settings_json,
+            report_config=test.report_config,
             logic_tree_json=logic_tree,
             calculation_rules_json=calc_rules
         ))
@@ -229,6 +232,7 @@ async def get_test(
         description=test.description,
         is_active=test.is_active,
         access_settings_json=test.access_settings_json,
+        report_config=test.report_config,
         logic_tree_json=logic_tree,
         calculation_rules_json=calc_rules
     )
@@ -238,7 +242,7 @@ async def get_test(
 async def update_test(
     test_id: int,
     data: TestCreateFull,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_psychologist)],
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -265,6 +269,7 @@ async def update_test(
     test.title = data.title
     test.description = data.description
     test.access_settings_json = data.access_settings_json
+    test.report_config = data.report_config
 
     if test.schemas:
         test.schemas[0].logic_tree_json = data.logic_tree_json
@@ -285,6 +290,7 @@ async def update_test(
         description=test.description,
         is_active=test.is_active,
         access_settings_json=test.access_settings_json,
+        report_config=data.report_config,
         logic_tree_json=data.logic_tree_json,
         calculation_rules_json=data.calculation_rules_json
     )

@@ -9,13 +9,14 @@ import { api } from '@/lib/api';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { Edit2, Save, PlusCircle, Settings, ClipboardList } from 'lucide-react'; // Added new lucide-react icons
 import toast from 'react-hot-toast'; // Added toast import
+import { User, AppTest } from '@/types';
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [businessCard, setBusinessCard] = useState<any>(null);
-  const [tests, setTests] = useState<any[]>([]);
+  const [tests, setTests] = useState<AppTest[]>([]);
   const [resultCounts, setResultCounts] = useState<Record<string, number>>({});
-  const [shareTest, setShareTest] = useState<any>(null);
+  const [shareTest, setShareTest] = useState<AppTest | null>(null);
   const [loading, setLoading] = useState(true);
   
   const [editProfileModal, setEditProfileModal] = useState(false);
@@ -69,7 +70,7 @@ export default function DashboardPage() {
 
     try {
       await api.delete(`/tests/${testId}`);
-      setTests(prev => prev.filter((test: any) => test.id !== testId));
+      setTests(prev => prev.filter(test => test.id !== testId));
       setResultCounts(prev => {
         const next = { ...prev };
         delete next[String(testId)];
@@ -185,7 +186,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <p className="text-sm opacity-60 uppercase tracking-widest font-semibold mb-1">Роль</p>
-              <p className="text-xl font-medium">{user?.role === 'admin' ? 'Администратор' : 'Психолог'}</p>
+              <p className="text-xl font-medium">{user?.role === 'admin' ? 'Администратор' : user?.role === 'psychologist' ? 'Психолог' : 'Клиент'}</p>
             </div>
             <div>
               <p className="text-sm opacity-60 uppercase tracking-widest font-semibold mb-1 flex items-center gap-2">Доступ до <Lock size={12} /></p>
@@ -202,7 +203,7 @@ export default function DashboardPage() {
             <h2 className="text-xl font-semibold mb-6 border-b border-black/10 dark:border-white/10 pb-4">Управление психологами</h2>
             <p className="opacity-80">Интерфейс управления психологами находится в разработке.</p>
           </div>
-        ) : (
+        ) : user?.role === 'psychologist' ? (
           <>
             {/* Карточка визитки (только для психолога) */}
             <div className="p-8 rounded-3xl backdrop-blur-xl bg-white/30 dark:bg-black/30 shadow-2xl border border-white/20 flex flex-col items-center justify-center">
@@ -244,13 +245,17 @@ export default function DashboardPage() {
               </div>
 
               {tests.length === 0 ? (
-                <div className="text-center opacity-60 my-10">
-                  <p className="text-lg">У вас пока нет созданных тестов.</p>
-                  <p className="text-sm mt-2">Нажмите «Создать новый тест», чтобы начать.</p>
+                <div className="flex flex-col items-center justify-center text-center opacity-70 my-16 bg-white/5 dark:bg-black/5 rounded-3xl p-10 border border-white/10 border-dashed backdrop-blur-sm">
+                  <ClipboardList size={64} className="mb-6 opacity-50 text-blue-500" strokeWidth={1.5} />
+                  <p className="text-2xl font-bold mb-2">У вас пока нет тестов</p>
+                  <p className="text-base mt-2 mb-8 max-w-sm">Нажмите кнопку «Создать новый тест», чтобы сконструировать свой первый инструмент профилирования.</p>
+                  <GlassButton onClick={() => router.push('/dashboard/constructor/new')} className="!py-3 !px-6 text-base font-bold bg-blue-500/80 hover:bg-blue-600 shadow-lg text-white">
+                    ➕ Создать первый тест
+                  </GlassButton>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {tests.map((test: any) => (
+                  {tests.map(test => (
                     <div key={test.id} className="flex flex-col sm:flex-row items-center justify-between p-5 bg-white/40 dark:bg-black/40 rounded-2xl border border-white/10 shadow-sm backdrop-blur-md hover:bg-white/50 dark:hover:bg-black/50 transition-colors">
                       <div className="w-full sm:w-auto text-center sm:text-left mb-4 sm:mb-0">
                         <button
@@ -291,6 +296,14 @@ export default function DashboardPage() {
               )}
             </div>
           </>
+        ) : (
+          <div className="md:col-span-2 p-8 rounded-3xl backdrop-blur-xl bg-white/30 dark:bg-black/30 shadow-2xl border border-white/20 flex flex-col items-center justify-center text-center">
+            <h2 className="text-2xl font-bold mb-4">Добро пожаловать в ПрофДНК</h2>
+            <p className="opacity-70 mb-8 max-w-md">Здесь вы можете пройти тестирование, если у вас есть код доступа или ссылка от вашего профилирующего психолога.</p>
+            <GlassButton onClick={() => router.push('/test')} className="!py-4 !px-8 text-lg font-bold bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/30">
+              Пройти тест по коду
+            </GlassButton>
+          </div>
         )}
 
       </div>

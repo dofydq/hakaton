@@ -19,7 +19,7 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.psychologist)
+    role: Mapped[str] = mapped_column(String, default="client")
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     full_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -41,6 +41,9 @@ class Test(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     access_settings_json: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
+    max_submissions: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    report_config: Mapped[Optional[Any]] = mapped_column(JSONB, default={"show_table": True, "show_chart": False, "show_interpretation": True})
+    secure_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, index=True)
 
     psychologist: Mapped["User"] = relationship("User", back_populates="tests")
     schemas: Mapped[list["TestSchema"]] = relationship("TestSchema", back_populates="test")
@@ -103,6 +106,8 @@ class TestResult(Base):
     client_fio: Mapped[str] = mapped_column(String, nullable=False)
     answers: Mapped[Any] = mapped_column(JSONB, nullable=False)
     total_points: Mapped[int] = mapped_column(Integer, default=0)
+    test_snapshot: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
+    secure_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, index=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
     test: Mapped["Test"] = relationship("Test")

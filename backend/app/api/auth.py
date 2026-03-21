@@ -1,7 +1,8 @@
 from typing import Annotated
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import timedelta
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from sqlalchemy import select
@@ -70,6 +71,7 @@ async def register(
 
 @router.post("/login")
 async def login(
+    response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: AsyncSession = Depends(get_db)
 ):
@@ -94,6 +96,15 @@ async def login(
 
     # Токен выдан, в субъект сохраняем ID пользователя
     access_token = create_access_token(data={"sub": str(user.id)})
+    refresh_token = create_access_token(data={"sub": str(user.id)}, expires_delta=timedelta(days=7))
+    
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        max_age=7*24*60*60
+    )
     
     await merge_guest_results(user, db)
 
@@ -126,6 +137,16 @@ async def get_current_user(
         raise credentials_exception
 
     return user
+
+async def get_current_psychologist(
+    current_user: Annotated[User, Depends(get_current_user)]
+) -> User:
+    if current_user.role != "psychologist" and current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Доступ запрещен. Требуется роль психолога."
+        )
+    return current_user
 
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
 

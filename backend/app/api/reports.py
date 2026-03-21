@@ -10,6 +10,7 @@ from app.api.auth import get_current_user, get_current_user_optional
 from app.db.database import get_db
 from app.models.models import Session, User, TestResult, Test, UserRole
 from app.services.report_generator import generate_docx_report
+from starlette.concurrency import run_in_threadpool
 import uuid
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -64,7 +65,17 @@ async def download_test_result_report(
     category_scores = _meta.get("section_scores_percent", {})
     
     questions_map = {}
-    logic_tree = test.schemas[0].logic_tree_json if test.schemas else []
+    
+    snapshot = test_result.test_snapshot
+    report_config_from_snapshot = {"show_table": True, "show_chart": False, "show_interpretation": True}
+    
+    if isinstance(snapshot, dict) and "logic_tree" in snapshot:
+        logic_tree = snapshot.get("logic_tree", [])
+        report_config_from_snapshot = snapshot.get("report_config", report_config_from_snapshot)
+    else:
+        logic_tree = snapshot if snapshot else (test.schemas[0].logic_tree_json if test.schemas else [])
+        report_config_from_snapshot = test.report_config if test.report_config is not None else report_config_from_snapshot
+        
     if isinstance(logic_tree, list):
         for sec in logic_tree:
             if isinstance(sec, dict) and 'questions' in sec:
@@ -122,12 +133,14 @@ async def download_test_result_report(
     if not user_name:
         user_name = user.full_name or "Неизвестный"
         
-    buffer = generate_docx_report(
+    buffer = await run_in_threadpool(
+        generate_docx_report,
         user_name=user_name,
         test_title=test.title,
         score=test_result.total_points,
         answers_list=answers_list,
-        category_scores=category_scores
+        category_scores=category_scores,
+        report_config=report_config_from_snapshot
     )
     
     return StreamingResponse(

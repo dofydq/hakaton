@@ -41,6 +41,7 @@ class TestBase(BaseModel):
     description: Optional[str] = None
     is_active: bool = True
     access_settings_json: Optional[JsonType] = None
+    report_config: Optional[JsonType] = {"show_table": True, "show_chart": False, "show_interpretation": True}
 
 class TestCreate(TestBase):
     psychologist_id: int
@@ -122,6 +123,7 @@ class TestCreateFull(BaseModel):
     title: str
     description: Optional[str] = None
     access_settings_json: Optional[JsonType] = None
+    report_config: Optional[JsonType] = {"show_table": True, "show_chart": False, "show_interpretation": True}
     logic_tree_json: JsonType
     calculation_rules_json: JsonType
 
@@ -131,6 +133,7 @@ class TestResponseFull(BaseModel):
     description: Optional[str] = None
     is_active: bool
     access_settings_json: Optional[JsonType] = None
+    report_config: Optional[JsonType] = None
     logic_tree_json: JsonType
     calculation_rules_json: JsonType
 

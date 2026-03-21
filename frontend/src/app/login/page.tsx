@@ -4,17 +4,20 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 import { GlassButton } from '@/components/ui/GlassButton';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
       const formData = new FormData();
@@ -36,6 +39,8 @@ export default function LoginPage() {
     } catch (err: any) {
       console.error("Full error details:", err);
       setError(err.message || 'Произошла ошибка');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -68,8 +73,8 @@ export default function LoginPage() {
             />
           </div>
           {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-          <GlassButton type="submit" className="w-full mt-4">
-            Войти
+          <GlassButton type="submit" className="w-full mt-4" disabled={loading}>
+            {loading ? <span className="flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={20} /> Вход...</span> : 'Войти'}
           </GlassButton>
         </form>
         <div className="mt-6 text-center">

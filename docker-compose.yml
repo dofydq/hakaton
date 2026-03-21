@@ -32,6 +32,7 @@ services:
       # Добавь другие переменные окружения по необходимости
     volumes:
       - ./backend:/app # Для hot-reload в разработке
+      - ./data/uploads:/app/static
     depends_on:
       db:
         condition: service_healthy

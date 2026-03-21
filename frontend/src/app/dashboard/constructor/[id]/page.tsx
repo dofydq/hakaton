@@ -40,6 +40,11 @@ export default function ConstructorPage() {
   const [loading, setLoading] = useState(true);
   const [isPreview, setIsPreview] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [reportConfig, setReportConfig] = useState({
+    show_table: true,
+    show_chart: false,
+    show_interpretation: true
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -59,6 +64,9 @@ export default function ConstructorPage() {
               questions: Array.isArray(s.questions) ? s.questions : []
             }));
             setSections(safeSections);
+          }
+          if (data.report_config) {
+            setReportConfig(data.report_config);
           }
         })
         .catch((err: any) => {
@@ -210,7 +218,8 @@ export default function ConstructorPage() {
         description,
         access_settings_json: {},
         logic_tree_json: sections,
-        calculation_rules_json: {}
+        calculation_rules_json: {},
+        report_config: reportConfig
       };
 
       if (id === 'new') {
@@ -440,6 +449,39 @@ export default function ConstructorPage() {
               <GlassButton onClick={addSection} className="w-full mt-10 py-5 border-2 border-dashed border-white/20 hover:border-white/50 bg-white/5 hover:bg-white/10 text-white font-bold text-base md:text-lg flex items-center justify-center gap-3 transition-colors">
                 <Plus size={22} /> Добавить новый раздел
               </GlassButton>
+
+              <div className="mt-12 rounded-[2rem] border border-white/20 bg-white/10 p-6 shadow-xl backdrop-blur-2xl md:p-8">
+                <h3 className="text-xl font-bold mb-6">Настройки отчета (DOCX)</h3>
+                <div className="flex flex-col gap-4">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="w-5 h-5 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500"
+                      checked={reportConfig.show_table}
+                      onChange={e => setReportConfig(prev => ({...prev, show_table: e.target.checked}))}
+                    />
+                    <span className="font-medium">Показывать таблицу баллов и ответов</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="w-5 h-5 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500"
+                      checked={reportConfig.show_chart}
+                      onChange={e => setReportConfig(prev => ({...prev, show_chart: e.target.checked}))}
+                    />
+                    <span className="font-medium">Показывать графики (в разработке)</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="w-5 h-5 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500"
+                      checked={reportConfig.show_interpretation}
+                      onChange={e => setReportConfig(prev => ({...prev, show_interpretation: e.target.checked}))}
+                    />
+                    <span className="font-medium">Показывать краткое заключение (интерпретацию)</span>
+                  </label>
+                </div>
+              </div>
             </>
           )}
         </div>
