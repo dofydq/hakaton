@@ -1,11 +1,10 @@
-from typing import Annotated
-
+from typing import Annotated, List
 import jwt
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import (
@@ -17,14 +16,12 @@ from app.core.security import (
 )
 from app.db.database import get_db
 from app.models.models import User, TestResult
+from app.models.enums import UserRole
 from app.schemas.schemas import UserCreate, UserRead
-from sqlalchemy import update
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Схема для FastAPI (куда отправлять данные формы для логина)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
-
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 async def register(
@@ -32,7 +29,6 @@ async def register(
     db: AsyncSession = Depends(get_db)
 ):
     try:
-        # Проверяем, существует ли пользователь с таким email
         query = select(User).where(User.email == user_data.email)
         result = await db.execute(query)
         existing_user = result.scalars().first()
@@ -50,7 +46,7 @@ async def register(
             password_hash=hashed_pwd,
             full_name=user_data.full_name,
             phone=user_data.phone,
-            role=user_data.role,
+            role=UserRole.pending,
             bio_markdown=user_data.bio_markdown,
             avatar_url=user_data.avatar_url,
             is_active=user_data.is_active
@@ -60,7 +56,6 @@ async def register(
         await db.refresh(new_user)
         
         await merge_guest_results(new_user, db)
-
         return new_user
     except HTTPException:
         raise
@@ -68,14 +63,12 @@ async def register(
         print(f"!!! REGISTRATION ERROR: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-
 @router.post("/login")
 async def login(
     response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: AsyncSession = Depends(get_db)
 ):
-    # Ищем пользователя по email (fastapi security ожидает поле username)
     query = select(User).where(User.email == form_data.username)
     result = await db.execute(query)
     user = result.scalars().first()
@@ -93,10 +86,21 @@ async def login(
             detail="Неверный логин или пароль",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    if user.role == UserRole.pending:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ваша заявка на модерации"
+        )
+        
+    if user.is_active == False:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Аккаунт заблокирован"
+        )
 
-    # Токен выдан, в субъект сохраняем ID пользователя
-    access_token = create_access_token(data={"sub": str(user.id)})
-    refresh_token = create_access_token(data={"sub": str(user.id)}, expires_delta=timedelta(days=7))
+    access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
+    refresh_token = create_access_token(data={"sub": str(user.id), "role": user.role}, expires_delta=timedelta(days=7))
     
     response.set_cookie(
         key="refresh_token",
@@ -107,9 +111,7 @@ async def login(
     )
     
     await merge_guest_results(user, db)
-
     return {"access_token": access_token, "token_type": "bearer"}
-
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
@@ -120,7 +122,6 @@ async def get_current_user(
         detail="Не удалось проверить учетные данные",
         headers={"WWW-Authenticate": "Bearer"},
     )
-
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id_str: str | None = payload.get("sub")
@@ -132,16 +133,14 @@ async def get_current_user(
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalars().first()
-
     if user is None:
         raise credentials_exception
-
     return user
 
 async def get_current_psychologist(
     current_user: Annotated[User, Depends(get_current_user)]
 ) -> User:
-    if current_user.role != "psychologist" and current_user.role != "admin":
+    if current_user.role != UserRole.psychologist and current_user.role != UserRole.admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Доступ запрещен. Требуется роль психолога."
@@ -177,3 +176,15 @@ async def merge_guest_results(user: User, db: AsyncSession):
         ).values(user_id=user.id)
         await db.execute(query)
         await db.commit()
+
+class RoleChecker:
+    def __init__(self, allowed_roles: List[str]):
+        self.allowed_roles = allowed_roles
+
+    def __call__(self, user: User = Depends(get_current_user)):
+        if user.role not in self.allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Доступ запрещен. Требуемые роли: {', '.join(self.allowed_roles)}"
+            )
+        return user

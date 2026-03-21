@@ -3,11 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { Moon, Sun, LogOut, Share2, X, Edit3, Upload, Lock, Trash2 } from 'lucide-react';
+import { Moon, Sun, LogOut, Share2, X, Edit3, Upload, Lock, Trash2, Shield, Copy, ClipboardList, CheckCircle, Settings, PenTool } from 'lucide-react';
 import Cookies from 'js-cookie';
 import { api } from '@/lib/api';
 import { GlassButton } from '@/components/ui/GlassButton';
-import { ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { User, AppTest } from '@/types';
 
@@ -44,9 +43,12 @@ export default function DashboardPage() {
           setTests(testsRes.data);
           setResultCounts(countsRes.data);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching data:', err);
-        router.push('/login');
+        // Редирект только если это ошибка авторизации и интерцептор не сработал
+        if (err.response?.status === 401) {
+          router.push('/login');
+        }
       } finally {
         setLoading(false);
       }
@@ -132,6 +134,11 @@ export default function DashboardPage() {
       <header className="flex justify-between items-center mb-12 max-w-6xl mx-auto">
         <h1 className="text-2xl font-bold">Личный кабинет</h1>
         <div className="flex gap-4">
+          {user?.role === 'admin' && (
+            <GlassButton onClick={() => router.push('/admin')} className="!p-3 !rounded-full sm:!rounded-2xl sm:px-6 flex gap-2 items-center bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+              <Shield size={20} /> <span className="hidden sm:inline">Панель Администратора</span>
+            </GlassButton>
+          )}
           <GlassButton onClick={toggleTheme} className="!p-3 !rounded-full flex items-center justify-center">
             {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
           </GlassButton>
@@ -309,16 +316,27 @@ export default function DashboardPage() {
               <X size={20} />
             </button>
             <h3 className="text-xl font-bold mb-8">Поделиться тестом</h3>
-            <div className="bg-white p-4 rounded-2xl mb-6 flex items-center justify-center shadow-inner">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`http://localhost:3000/test/${shareTest.id}`)}`}
-                alt="Test QR Code"
-                className="w-48 h-48 mix-blend-multiply"
-              />
-            </div>
-            <div className="w-full bg-slate-100 dark:bg-white/10 p-4 rounded-xl break-all text-sm font-medium text-center border border-slate-200 dark:border-white/10 select-all cursor-text shadow-inner">
-              {`http://localhost:3000/test/${shareTest.id}`}
-            </div>
+            {(() => {
+              const originUrl = typeof window !== 'undefined' 
+                ? window.location.origin 
+                : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
+              const testLink = `${originUrl}/test/${shareTest.id}`;
+              
+              return (
+                <>
+                  <div className="bg-white p-4 rounded-2xl mb-6 flex items-center justify-center shadow-inner">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(testLink)}`}
+                      alt="Test QR Code"
+                      className="w-48 h-48 mix-blend-multiply"
+                    />
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-white/10 p-4 rounded-xl break-all text-sm font-medium text-center border border-slate-200 dark:border-white/10 select-all cursor-text shadow-inner">
+                    {testLink}
+                  </div>
+                </>
+              );
+            })()}
             <p className="text-xs opacity-60 mt-6 text-center leading-relaxed">
               Отправьте эту ссылку или QR-код проверяемому для старта тестирования
             </p>

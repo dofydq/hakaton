@@ -64,16 +64,16 @@ export default function TestResultsPage() {
     fetchResults(false, page);
   }, [fetchResults, page]);
 
-  const handleDownloadReport = async (resultId: string) => {
+  const handleDownloadReport = async (resultId: string, type: 'client' | 'psychologist') => {
     const loadingToast = toast.loading('Отчет формируется...');
     try {
-      const response = await api.get(`/reports/api/results/${resultId}/report`, {
+      const response = await api.get(`/reports/results/${resultId}/report?type=${type}`, {
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `report_client_${resultId}.docx`);
+      link.setAttribute('download', `report_${type}_${resultId}.docx`);
       document.body.appendChild(link);
       link.click();
       if (link.parentNode) link.parentNode.removeChild(link);
@@ -255,28 +255,52 @@ export default function TestResultsPage() {
                         </div>
                       </td>
                       <td className="p-4 text-center">
-                        <span className={`inline-flex items-center gap-1 px-4 py-2 rounded-full font-bold text-base border ${
-                          r.total_points > 70 
-                            ? 'bg-green-500/15 border-green-500/30 text-green-700 dark:text-green-400' 
-                            : r.total_points >= 40 
-                              ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-400'
-                              : 'bg-red-500/15 border-red-500/30 text-red-700 dark:text-red-400'
-                        }`}>
-                          <Star size={14} strokeWidth={2.5} />
-                          {r.total_points}
-                        </span>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className={`inline-flex items-center gap-1 px-4 py-2 rounded-full font-bold text-base border ${
+                            r.total_points > 70 
+                              ? 'bg-green-500/15 border-green-500/30 text-green-700 dark:text-green-400' 
+                              : r.total_points >= 40 
+                                ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-400'
+                                : 'bg-red-500/15 border-red-500/30 text-red-700 dark:text-red-400'
+                          }`}>
+                            <Star size={14} strokeWidth={2.5} />
+                            {r.total_points}%
+                          </span>
+                          {/* Шкальный брейкдаун */}
+                          {r.detailed_results && Object.keys(r.detailed_results).length > 0 && (
+                            <div className="mt-1 flex flex-col gap-0.5 w-full max-w-[160px]">
+                              {Object.entries(r.detailed_results as Record<string, number>)
+                                .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+                                .slice(0, 5)
+                                .map(([scale, score]) => (
+                                <div key={scale} className="flex items-center gap-1.5 text-[11px]">
+                                  <span className="font-mono opacity-60 truncate max-w-[70px]" title={scale}>{scale}</span>
+                                  <span className={`font-bold ml-auto ${
+                                    score > 0 ? 'text-emerald-600 dark:text-emerald-400' 
+                                    : score < 0 ? 'text-red-600 dark:text-red-400' 
+                                    : 'opacity-40'
+                                  }`}>{score > 0 ? '+' : ''}{score}</span>
+                                </div>
+                              ))}
+                              {Object.keys(r.detailed_results).length > 5 && (
+                                <span className="text-[10px] opacity-40 text-center">+{Object.keys(r.detailed_results).length - 5} шкал</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </td>
+
                       <td className="p-4">
                         <div className="flex items-center justify-end gap-2">
                           <GlassButton
-                            onClick={() => handleDownloadReport(r.id)}
+                            onClick={() => handleDownloadReport(r.id, 'client')}
                             className="!py-2 !px-4 text-xs font-bold flex items-center gap-2 rounded-xl border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/25 text-blue-700 dark:text-blue-300"
                           >
                             <FileText size={14} />
                             Клиент
                           </GlassButton>
                           <GlassButton
-                            onClick={() => toast('Профессиональный отчёт — в разработке', { icon: '👨‍⚕️' })}
+                            onClick={() => handleDownloadReport(r.id, 'psychologist')}
                             className="!py-2 !px-4 text-xs font-bold flex items-center gap-2 rounded-xl border-violet-500/30 bg-violet-500/10 hover:bg-violet-500/25 text-violet-700 dark:text-violet-300"
                           >
                             <Stethoscope size={14} />

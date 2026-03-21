@@ -11,17 +11,28 @@ export default function LandingPage() {
         <p className="text-xl md:text-2xl mb-12 font-medium opacity-90 drop-shadow-sm max-w-2xl mx-auto">
           Создавайте сложные тесты с ветвлением и получайте отчеты в DOCX за секунды
         </p>
-        <div className="flex flex-col sm:flex-row justify-center gap-6">
-          <Link href="/login" passHref className="w-full sm:w-auto">
-            <GlassButton className="w-full px-8 py-4 text-lg font-semibold bg-white/10 hover:bg-white/20 border-white/30 text-white">
-              Войти
-            </GlassButton>
-          </Link>
-          <Link href="/register" passHref className="w-full sm:w-auto">
-            <GlassButton className="w-full px-8 py-4 text-lg font-semibold bg-blue-500/40 hover:bg-blue-500/60 border-blue-300/40 text-white">
-              Начать работу
-            </GlassButton>
-          </Link>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+          <div className="p-8 rounded-3xl bg-white/5 border border-white/10 flex flex-col items-center text-center">
+            <h2 className="text-2xl font-bold mb-4">Для клиентов</h2>
+            <p className="opacity-80 mb-6">Регистрация не нужна. Просто перейдите по индивидуальной ссылке, которую вам отправил ваш психолог или профориентолог.</p>
+          </div>
+          
+          <div className="p-8 rounded-3xl bg-white/5 border border-white/10 flex flex-col items-center text-center">
+            <h2 className="text-2xl font-bold mb-4">Для специалистов</h2>
+            <p className="opacity-80 mb-6">Создавайте тесты и управляйте результатами клиентов в едином кабинете.</p>
+            <div className="flex flex-col w-full gap-4">
+              <Link href="/login" passHref className="w-full">
+                <GlassButton className="w-full px-6 py-3 font-semibold bg-white/10 hover:bg-white/20 border-white/30 text-white">
+                  Войти
+                </GlassButton>
+              </Link>
+              <Link href="/register" passHref className="w-full">
+                <GlassButton className="w-full px-6 py-3 font-semibold bg-blue-500/40 hover:bg-blue-500/60 border-blue-300/40 text-white">
+                  Подать заявку
+                </GlassButton>
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </main>

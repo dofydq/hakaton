@@ -8,9 +8,59 @@ from sqlalchemy.orm import selectinload
 from app.api.auth import get_current_user, get_current_psychologist
 from app.db.database import get_db
 from app.models.models import Formula, Test, TestSchema, User
-from app.schemas.schemas import TestCreateFull, TestResponseFull
+from app.schemas.schemas import TestCreateFull, TestResponseFull, TestImportSchema
 
 router = APIRouter(prefix="/tests", tags=["tests"])
+
+@router.post("/import", status_code=status.HTTP_201_CREATED)
+async def import_test(
+    data: TestImportSchema,
+    current_user: Annotated[User, Depends(get_current_psychologist)],
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Массовый импорт теста (модели, вопросы, шкалы, интерпретации).
+    Использует атомарную транзакцию.
+    """
+    try:
+        # 1. Создаем основной объект теста
+        test = Test(
+            psychologist_id=current_user.id,
+            title=data.title,
+            description=data.description,
+            access_settings_json=data.access_settings_json,
+            report_config=data.report_config,
+            is_active=True
+        )
+        db.add(test)
+        await db.flush()
+
+        # 2. Привязываем схему и формулу (для совместимости с логикой QuestionBlock)
+        ts = TestSchema(test_id=test.id, logic_tree_json=data.logic_tree_json)
+        f = Formula(test_id=test.id, calculation_rules_json=data.calculation_rules_json or {})
+        db.add(ts)
+        db.add(f)
+
+        # 3. Добавляем правила интерпретации
+        from app.models.models import TestInterpretation
+        for inter in data.interpretations:
+            new_inter = TestInterpretation(
+                test_id=test.id,
+                scale_tag=inter.scale_tag,
+                min_val=inter.min_val,
+                max_val=inter.max_val,
+                is_percent=inter.is_percent,
+                text=inter.text
+            )
+            db.add(new_inter)
+
+        await db.commit()
+        await db.refresh(test)
+        return {"status": "success", "test_id": test.id}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка при импорте: {str(e)}")
+
 
 
 def validate_test_payload(title: str, logic_tree_json) -> None:

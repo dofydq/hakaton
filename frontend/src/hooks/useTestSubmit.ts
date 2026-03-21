@@ -90,7 +90,7 @@ export function useTestSubmit(id: string) {
       return;
     }
     
-    const downloadUrl = `/reports/api/results/${resultId}/report`;
+    const downloadUrl = `/reports/results/${resultId}/report`;
     console.log("FINAL URL CHECK:", downloadUrl);
     
     const loadingToast = toast.loading('Загрузка отчета...');

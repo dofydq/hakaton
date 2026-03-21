@@ -6,7 +6,9 @@ export interface QuestionOption {
   id: string;
   text: string;
   is_correct: boolean;
-  points: number;
+  points: number;   // Балл за этот вариант
+  weight?: number;  // Вес (множитель, float, может быть отрицательным)
+  scale_tag?: string; // Тег шкалы, которой принадлежит этот вариант
 }
 
 export interface QuestionData {
@@ -17,7 +19,9 @@ export interface QuestionData {
   options?: QuestionOption[];
   isRequired?: boolean;
   shuffleOptions?: boolean;
+  scale_tag?: string; // Шкала, которой принадлежит весь вопрос (default: 'default')
 }
+
 
 interface Props {
   question: QuestionData;
@@ -69,58 +73,74 @@ function OptionRow({
   remove: (idx: number) => void;
 }) {
   const [localText, setLocalText] = useState(option.text);
-  const [localPoints, setLocalPoints] = useState(option.points.toString());
+  const [localPoints, setLocalPoints] = useState(String(option.points ?? 0));
+  const [localWeight, setLocalWeight] = useState(String(option.weight ?? 1));
+  const [localScale, setLocalScale] = useState(option.scale_tag ?? '');
 
   useEffect(() => { setLocalText(option.text); }, [option.text]);
-  useEffect(() => { setLocalPoints(option.points.toString()); }, [option.points]);
-
-  const handleBlurPoints = () => {
-    update(idx, { points: parseInt(localPoints, 10) || 0 });
-  };
+  useEffect(() => { setLocalPoints(String(option.points ?? 0)); }, [option.points]);
+  useEffect(() => { setLocalWeight(String(option.weight ?? 1)); }, [option.weight]);
+  useEffect(() => { setLocalScale(option.scale_tag ?? ''); }, [option.scale_tag]);
 
   return (
-    <div className={`rounded-2xl border p-3 transition-all ${option.points > 0 ? 'border-green-500/40 bg-green-500/5' : 'border-white/10 bg-white/5 dark:bg-black/10'}`}>
-      <div className="flex flex-col gap-3 md:flex-row md:items-center">
-        <label className="flex items-center gap-3 md:min-w-[120px]">
+    <div className={`rounded-2xl border p-3 transition-all ${
+      (option.points ?? 0) !== 0 ? 'border-green-500/40 bg-green-500/5' : 'border-white/10 bg-white/5 dark:bg-black/10'
+    }`}>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <input
-            type="checkbox"
-            checked={option.is_correct}
-            onChange={(e) => update(idx, { is_correct: e.target.checked })}
-            className="h-5 w-5 rounded-md accent-blue-500"
+            value={localText}
+            onChange={e => setLocalText(e.target.value)}
+            onBlur={() => update(idx, { text: localText })}
+            className="min-w-0 flex-1 rounded-xl bg-white/5 px-3 py-2 text-sm font-medium outline-none ring-1 ring-transparent transition focus:ring-blue-500/40"
+            placeholder={`Вариант ${idx + 1}`}
           />
-          <span className="text-xs font-semibold uppercase tracking-[0.18em] opacity-65">Р—Р°СЃС‡РёС‚С‹РІР°С‚СЊ</span>
-        </label>
 
-        <input
-          value={localText}
-          onChange={e => setLocalText(e.target.value)}
-          onBlur={() => update(idx, { text: localText })}
-          className="min-w-0 flex-1 rounded-xl bg-white/5 px-3 py-2 text-sm font-medium outline-none ring-1 ring-transparent transition focus:ring-blue-500/40"
-          placeholder={`Р’Р°СЂРёР°РЅС‚ ${idx + 1}`}
-        />
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 rounded-xl bg-black/5 px-2 py-2 dark:bg-white/5" title="Балл (может быть отрицательным или дробным)">
+              <span className="text-[10px] font-bold uppercase tracking-widest opacity-50 whitespace-nowrap">Балл</span>
+              <input
+                type="number"
+                step="0.1"
+                value={localPoints}
+                onChange={e => setLocalPoints(e.target.value)}
+                onBlur={() => update(idx, { points: parseFloat(localPoints) || 0 })}
+                className="w-16 rounded-lg bg-white/20 py-1 text-center text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/50 dark:bg-black/20"
+              />
+            </div>
+            <div className="flex items-center gap-1 rounded-xl bg-black/5 px-2 py-2 dark:bg-white/5" title="Вес (множитель, float)">
+              <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">×</span>
+              <input
+                type="number"
+                step="0.1"
+                value={localWeight}
+                onChange={e => setLocalWeight(e.target.value)}
+                onBlur={() => update(idx, { weight: parseFloat(localWeight) || 1 })}
+                className="w-14 rounded-lg bg-white/20 py-1 text-center text-sm font-bold outline-none focus:ring-2 focus:ring-violet-500/50 dark:bg-black/20"
+              />
+            </div>
+          </div>
 
-        <div className="flex items-center justify-between gap-3 rounded-xl bg-black/5 px-3 py-2 dark:bg-white/5 md:justify-start">
-          <span className="flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.18em] opacity-65">
-            {option.points > 0 && <Star size={12} className="text-green-500" />}
-            Р‘Р°Р»Р»С‹
-          </span>
-          <input
-            type="number"
-            min="0"
-            value={localPoints}
-            onChange={e => setLocalPoints(e.target.value)}
-            onBlur={handleBlurPoints}
-            className="w-20 rounded-lg bg-white/20 py-1 text-center text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/50 dark:bg-black/20"
-          />
+          <button
+            onClick={() => remove(idx)}
+            className="self-end rounded-xl p-2 text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500 md:self-auto"
+            title="Удалить вариант"
+          >
+            <X size={16} />
+          </button>
         </div>
 
-        <button
-          onClick={() => remove(idx)}
-          className="self-end rounded-xl p-2 text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500 md:self-auto"
-          title="РЈРґР°Р»РёС‚СЊ РІР°СЂРёР°РЅС‚"
-        >
-          <X size={16} />
-        </button>
+        {/* Шкала варианта */}
+        <div className="flex items-center gap-2 pl-1">
+          <span className="text-[10px] font-bold uppercase tracking-widest opacity-40 whitespace-nowrap">Шкала</span>
+          <input
+            value={localScale}
+            onChange={e => setLocalScale(e.target.value)}
+            onBlur={() => update(idx, { scale_tag: localScale || undefined })}
+            placeholder="anxiety, logic, lie... (необязательно)"
+            className="flex-1 rounded-lg bg-white/5 px-2 py-1 text-xs outline-none ring-1 ring-transparent focus:ring-violet-500/40 font-mono"
+          />
+        </div>
       </div>
     </div>
   );
@@ -249,25 +269,41 @@ export const QuestionBlock = ({ question, updateQuestion, deleteQuestion }: Prop
         />
 
         {showSettings && (
-          <div className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-black/5 p-4 dark:bg-white/5 md:grid-cols-2">
-            <label className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-3">
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-black/5 p-4 dark:bg-white/5">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <label className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-3">
+                <input
+                  type="checkbox"
+                  checked={question.isRequired ?? false}
+                  onChange={e => updateQuestion(question.id, { isRequired: e.target.checked })}
+                  className="h-4 w-4 rounded accent-blue-500"
+                />
+                <span className="text-sm font-medium">Обязательный вопрос</span>
+              </label>
+              <label className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-3">
+                <input
+                  type="checkbox"
+                  checked={question.shuffleOptions ?? false}
+                  onChange={e => updateQuestion(question.id, { shuffleOptions: e.target.checked })}
+                  className="h-4 w-4 rounded accent-blue-500"
+                />
+                <span className="text-sm font-medium">Перемешивать ответы</span>
+              </label>
+            </div>
+            {/* Шкала вопроса */}
+            <div className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-3">
+              <span className="text-sm font-medium whitespace-nowrap">Шкала вопроса</span>
               <input
-                type="checkbox"
-                checked={question.isRequired ?? false}
-                onChange={e => updateQuestion(question.id, { isRequired: e.target.checked })}
-                className="h-4 w-4 rounded accent-blue-500"
+                type="text"
+                placeholder="default, anxiety, logic, lie..."
+                value={question.scale_tag ?? ''}
+                onChange={e => updateQuestion(question.id, { scale_tag: e.target.value || undefined })}
+                className="flex-1 rounded-lg bg-white/20 px-3 py-1.5 text-sm font-mono outline-none ring-1 ring-transparent focus:ring-violet-500/40 dark:bg-black/20"
               />
-              <span className="text-sm font-medium">РћР±СЏР·Р°С‚РµР»СЊРЅС‹Р№ РІРѕРїСЂРѕСЃ</span>
-            </label>
-            <label className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-3">
-              <input
-                type="checkbox"
-                checked={question.shuffleOptions ?? false}
-                onChange={e => updateQuestion(question.id, { shuffleOptions: e.target.checked })}
-                className="h-4 w-4 rounded accent-blue-500"
-              />
-              <span className="text-sm font-medium">РџРµСЂРµРјРµС€РёРІР°С‚СЊ РѕС‚РІРµС‚С‹</span>
-            </label>
+            </div>
+            {question.scale_tag && (
+              <p className="text-xs opacity-50 px-1">Вопрос будет засчитываться в шкалу <code className="font-mono">{question.scale_tag}</code>. Варианты ответа могут переопределять шкалу.</p>
+            )}
           </div>
         )}
 

@@ -25,25 +25,30 @@ async def read_users_me(
     return current_user
 
 
-@router.put("/me", response_model=UserRead)
+@router.patch("/me", response_model=UserRead)
 async def update_users_me(
     profile_data: UserUpdateProfile,
     current_user: Annotated[User, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Обновить данные пользователя.
-    Согласно ТЗ, изменять можно только avatar_url и bio_markdown.
+    Обновить данные профиля (ФИО, телефон, специализация, био).
     """
+    if profile_data.full_name is not None:
+        current_user.full_name = profile_data.full_name
+    if profile_data.phone is not None:
+        current_user.phone = profile_data.phone
+    if profile_data.specialization is not None:
+        current_user.specialization = profile_data.specialization
+    if profile_data.bio is not None:
+        current_user.bio = profile_data.bio
     if profile_data.bio_markdown is not None:
         current_user.bio_markdown = profile_data.bio_markdown
     if profile_data.avatar_url is not None:
         current_user.avatar_url = profile_data.avatar_url
         
-    db.add(current_user)
     await db.commit()
     await db.refresh(current_user)
-    
     return current_user
 
 
