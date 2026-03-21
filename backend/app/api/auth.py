@@ -15,8 +15,9 @@ from app.core.security import (
     get_password_hash,
 )
 from app.db.database import get_db
-from app.models.models import User
+from app.models.models import User, TestResult
 from app.schemas.schemas import UserCreate, UserRead
+from sqlalchemy import update
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -56,6 +57,8 @@ async def register(
         db.add(new_user)
         await db.commit()
         await db.refresh(new_user)
+        
+        await merge_guest_results(new_user, db)
 
         return new_user
     except HTTPException:
@@ -91,6 +94,8 @@ async def login(
 
     # Токен выдан, в субъект сохраняем ID пользователя
     access_token = create_access_token(data={"sub": str(user.id)})
+    
+    await merge_guest_results(user, db)
 
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -121,3 +126,33 @@ async def get_current_user(
         raise credentials_exception
 
     return user
+
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
+
+async def get_current_user_optional(
+    token: Annotated[str | None, Depends(oauth2_scheme_optional)] = None,
+    db: AsyncSession = Depends(get_db)
+) -> User | None:
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id_str: str | None = payload.get("sub")
+        if not user_id_str:
+            return None
+        user_id = int(user_id_str)
+    except (InvalidTokenError, ValueError):
+        return None
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+    return user
+
+async def merge_guest_results(user: User, db: AsyncSession):
+    if user.email:
+        query = update(TestResult).where(
+            TestResult.user_id == None,
+            TestResult.guest_email == user.email
+        ).values(user_id=user.id)
+        await db.execute(query)
+        await db.commit()

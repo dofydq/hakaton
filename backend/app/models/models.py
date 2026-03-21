@@ -2,9 +2,10 @@ import enum
 from datetime import datetime
 from typing import Any, Optional
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, UUID
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+import uuid
 
 from app.db.database import Base
 
@@ -95,8 +96,10 @@ class Answer(Base):
 class TestResult(Base):
     __tablename__ = "test_results"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     test_id: Mapped[int] = mapped_column(Integer, ForeignKey("tests.id"))
+    user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    guest_email: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     client_fio: Mapped[str] = mapped_column(String, nullable=False)
     answers: Mapped[Any] = mapped_column(JSONB, nullable=False)
     total_points: Mapped[int] = mapped_column(Integer, default=0)

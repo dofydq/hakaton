@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { GlassButton } from '@/components/ui/GlassButton';
-import { Loader2, CheckCircle2 } from 'lucide-react';
+import { Loader2, CheckCircle2, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function PublicTestPage() {
@@ -22,6 +22,7 @@ export default function PublicTestPage() {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [submitting, setSubmitting] = useState(false);
   const [finalScore, setFinalScore] = useState<number | null>(null);
+  const [resultId, setResultId] = useState<string | null>(null);
 
   // Вычисляем проценты
   const totalQuestions = test?.logic_tree_json?.reduce((sum: number, s: any) => sum + (s.questions?.length || 0), 0) || 0;
@@ -70,6 +71,11 @@ export default function PublicTestPage() {
         answers_json: answers
       });
       setFinalScore(res.data.total_points);
+      
+      const newResultId = res.data.result_id || res.data.id;
+      console.log("Ответ сервера:", res.data);
+      setResultId(newResultId);
+      
       setStep(2);
       toast.success('Тест успешно завершен!');
     } catch (e) {
@@ -82,6 +88,35 @@ export default function PublicTestPage() {
 
   const setAnswer = (qId: string, val: any) => {
     setAnswers(prev => ({ ...prev, [qId]: val }));
+  };
+
+  const handleDownloadReport = async () => {
+    console.log("Скачивание для ID:", resultId);
+    if (!resultId) {
+      console.error("Result ID is not set. Download aborted.");
+      return;
+    }
+    
+    const downloadUrl = `/reports/api/results/${resultId}/report`;
+    console.log("FINAL URL CHECK:", downloadUrl);
+    
+    const loadingToast = toast.loading('Загрузка отчета...');
+    try {
+      const response = await api.get(downloadUrl, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `report_client_${resultId}.docx`);
+      document.body.appendChild(link);
+      link.click();
+      if (link.parentNode) link.parentNode.removeChild(link);
+      toast.success('Отчет скачан!', { id: loadingToast });
+    } catch (err) {
+      console.error(err);
+      toast.error('Ошибка при скачивании отчета', { id: loadingToast });
+    }
   };
 
   const renderQuestionInput = (q: any) => {
@@ -249,21 +284,39 @@ export default function PublicTestPage() {
   // --- Step 2: Success ---
   if (step === 2) {
     return (
-      <div className="min-h-screen p-8 max-w-3xl mx-auto flex flex-col items-center justify-center animate-in zoom-in slide-in-from-bottom-8 duration-500">
-         <div className="p-12 rounded-[3rem] backdrop-blur-3xl bg-green-500/10 shadow-2xl border border-green-400/30 w-full text-center">
-            <CheckCircle2 size={80} className="text-green-400 mx-auto mb-6 drop-shadow-[0_0_30px_rgba(74,222,128,0.5)]" />
-            <h1 className="text-5xl font-black mb-6">Тест завершен!</h1>
-            <p className="text-xl opacity-90 mb-8 font-medium">Спасибо за прохождение, ваши ответы сохранены.</p>
+      <div className="min-h-screen p-8 max-w-3xl mx-auto flex flex-col items-center justify-center">
+         <div className="p-10 md:p-14 rounded-[2rem] bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.12)] w-full max-w-2xl text-center animate-in fade-in duration-700">
+            <CheckCircle2 size={80} className="text-green-500 mx-auto mb-6 drop-shadow-md" />
+            <h1 className="text-3xl font-black mb-4 text-white">Тестирование завершено!</h1>
+            <p className="text-lg opacity-80 mb-10 font-medium">Ваши результаты успешно сохранены и доступны для анализа.</p>
+            
             {finalScore !== null && (
-               <div className="inline-block px-8 py-4 bg-black/30 rounded-3xl border border-white/10 mb-8">
-                  <p className="text-sm uppercase tracking-widest opacity-60 font-bold mb-1">Сумма набранных баллов</p>
-                  <p className="text-5xl font-black text-blue-400">{finalScore}</p>
+               <div className="mb-10 flex flex-col items-center">
+                  <div className="inline-flex flex-col items-center justify-center w-40 h-40 rounded-full bg-white/5 border border-white/10 shadow-inner mb-4">
+                    <span className="text-sm uppercase tracking-widest opacity-60 font-bold mb-1">Балл</span>
+                    <span className="text-5xl font-black text-blue-400">{finalScore}</span>
+                  </div>
+                  {finalScore > 80 && <p className="text-xl font-bold text-green-400 mt-2">Отличный результат!</p>}
+                  {finalScore < 40 && <p className="text-xl font-bold text-red-400 mt-2">Рекомендуем углубленную консультацию</p>}
                </div>
             )}
-            <br/>
-            <GlassButton onClick={() => window.location.href = '/'} className="!py-4 !px-10 text-lg font-bold">
-               Вернуться на главную
-            </GlassButton>
+            
+            <div className="flex flex-col items-center gap-4 w-full">
+              <button 
+                onClick={handleDownloadReport}
+                className="w-full md:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg rounded-2xl shadow-lg transition-transform hover:scale-105 flex items-center justify-center gap-3"
+              >
+                <FileText size={20} />
+                Скачать мой отчет
+              </button>
+              
+              <button 
+                onClick={() => window.location.href = '/'} 
+                className="mt-6 text-sm font-medium opacity-60 hover:opacity-100 transition-opacity decoration-white hover:underline uppercase tracking-wide"
+              >
+                 Вернуться к списку тестов
+              </button>
+            </div>
          </div>
       </div>
     );
