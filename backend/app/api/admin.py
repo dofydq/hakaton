@@ -1,7 +1,7 @@
-from datetime import date
+from datetime import datetime
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,7 +22,7 @@ class AdminUserCreate(BaseModel):
 
 class AdminUserUpdate(BaseModel):
     is_active: Optional[bool] = None
-    access_until: Optional[date] = None
+    access_until: Optional[datetime] = None
     role: Optional[str] = None
 
 class AdminUserResponse(BaseModel):
@@ -31,11 +31,10 @@ class AdminUserResponse(BaseModel):
     email: str
     phone: Optional[str]
     is_active: bool
-    access_until: Optional[date]
+    access_until: Optional[datetime]
     role: str
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 @router.get("/stats", response_model=AdminStats)
 async def get_admin_stats(
@@ -120,6 +119,27 @@ async def update_user_status(
     if update_data.role is not None:
         user.role = update_data.role
         
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+@router.patch("/users/{user_id}/access", response_model=AdminUserResponse)
+async def extend_user_access(
+    user_id: int,
+    access_until: datetime,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Ручное продление доступа для психолога.
+    """
+    query = select(User).where(User.id == user_id)
+    result = await db.execute(query)
+    user = result.scalars().first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    user.access_until = access_until
     await db.commit()
     await db.refresh(user)
     return user

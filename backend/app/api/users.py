@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_user
+from app.api.deps import check_access_active
 from app.services.storage import storage_service
 from app.core.utils import generate_qr_code
 from app.db.database import get_db
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("/me", response_model=UserRead)
 async def read_users_me(
-    current_user: Annotated[User, Depends(get_current_user)]
+    current_user: User = Depends(check_access_active)
 ):
     """
     Получить данные текущего авторизованного пользователя.
@@ -28,7 +29,7 @@ async def read_users_me(
 @router.patch("/me", response_model=UserRead)
 async def update_users_me(
     profile_data: UserUpdateProfile,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: User = Depends(check_access_active),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -54,7 +55,7 @@ async def update_users_me(
 
 @router.post("/upload-avatar")
 async def upload_avatar(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: User = Depends(check_access_active),
     db: AsyncSession = Depends(get_db),
     file: UploadFile = File(...)
 ):
@@ -73,7 +74,7 @@ async def upload_avatar(
 
 @router.get("/me/business-card")
 async def get_business_card(
-    current_user: Annotated[User, Depends(get_current_user)]
+    current_user: User = Depends(check_access_active)
 ):
     """
     Генерирует ссылку и QR-код для визитки пользователя.

@@ -261,3 +261,28 @@ class QuestionSchema(BaseModel):
     options: Optional[list[AnswerOptionSchema]] = None
     isRequired: bool = False
     shuffleOptions: bool = False
+
+# --- TestLink ---
+
+class TestLinkBase(BaseModel):
+    label: str
+    test_id: int
+
+class TestLinkCreate(TestLinkBase):
+    pass
+
+class TestLinkRead(TestLinkBase):
+    id: str
+    psychologist_id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# --- Public API ---
+
+class PublicTestSubmit(BaseModel):
+    link_id: str
+    client_name: str
+    client_email: EmailStr
+    answers: Dict[str, Any]  # question_id: answer_value

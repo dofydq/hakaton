@@ -1,12 +1,13 @@
 import asyncio
 import sys
 import os
+from datetime import datetime, timedelta
 
 # Добавляем путь к корню, чтобы импорты из app работали
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.db.database import async_session_maker, engine, Base
-from app.models.models import User, Test, TestSchema, Formula, TestInterpretation, UserRole
+from app.models.models import User, Test, TestSchema, Formula, TestInterpretation, UserRole, TestLink
 from app.core.security import get_password_hash
 from sqlalchemy import select, text
 
@@ -51,7 +52,8 @@ async def init_db():
                     phone="88005553535",
                     role=UserRole.admin,
                     specialization="System Architect",
-                    is_active=True
+                    is_active=True,
+                    access_until=datetime.utcnow() + timedelta(days=365)
                 )
                 session.add(admin)
                 await session.flush()
@@ -167,6 +169,15 @@ async def init_db():
                     session.add(inter)
 
                 print(f"3. Demo test '{test_title}' with 3 scales created.")
+
+                # 4. Демо-ссылка для теста
+                demo_link = TestLink(
+                    test_id=demo_test.id,
+                    psychologist_id=admin.id,
+                    label="Demo-School-2024"
+                )
+                session.add(demo_link)
+                print(f"4. Demo link created with label: {demo_link.label}")
             else:
                 print(f"3. Demo test '{test_title}' already exists.")
 

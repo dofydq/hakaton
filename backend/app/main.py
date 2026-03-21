@@ -15,6 +15,8 @@ from app.api.client import router as client_router
 from app.api.reports import router as reports_router
 from app.api.results import router as results_router
 from app.api.admin import router as admin_router
+from app.api.public import router as public_router
+from app.api.links import router as links_router
 from app.db.database import engine, Base
 import app.models.models  # noqa: F401
 
@@ -107,6 +109,8 @@ app.include_router(users_router, prefix="/api", tags=["Psychologist Profile"])
 app.include_router(client_router, prefix="/api", tags=["Client Test Taking"])
 app.include_router(results_router, prefix="/api", tags=["Results & Reports"])
 app.include_router(reports_router, prefix="/api", tags=["Results & Reports"])
+app.include_router(public_router, prefix="/api", tags=["Public Test Taking"])
+app.include_router(links_router, prefix="/api", tags=["Test Links"])
 
 # Статика
 os.makedirs("static/avatars", exist_ok=True)

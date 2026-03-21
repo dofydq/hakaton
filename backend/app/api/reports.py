@@ -23,6 +23,7 @@ from sqlalchemy.orm import selectinload
 from starlette.concurrency import run_in_threadpool
 
 from app.api.auth import get_current_user, get_current_user_optional
+from app.api.deps import check_access_active
 from app.db.database import get_db
 from app.models.models import Session, User, TestResult, Test
 from app.models.enums import UserRole
@@ -90,7 +91,7 @@ def _build_answers_list(test_result: TestResult, test: Test) -> list[dict]:
 @router.post("/api/sessions/{session_id}/complete")
 async def complete_session(
     session_id: int,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: User = Depends(check_access_active),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -283,7 +284,7 @@ async def download_test_result_report(
 @router.get("/{session_id}/download-docx")
 async def download_report_docx(
     session_id: int,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: User = Depends(check_access_active),
     db: AsyncSession = Depends(get_db),
 ):
     query = select(Session).where(Session.id == session_id).options(

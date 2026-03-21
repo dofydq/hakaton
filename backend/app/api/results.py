@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 from datetime import datetime
 
 from app.api.auth import get_current_user_optional
+from app.api.deps import check_access_active
 from app.db.database import get_db
 from app.models.models import Test, TestResult, User
 from app.schemas.schemas import TestResultSubmit
@@ -92,8 +93,8 @@ async def save_test_result(
     if matches:
         interpretation_text = "\n\n".join(matches)
 
-    detailed_results = {k: round(v, 3) for k, v in scale_scores.items()}
-    percentage = round(total_percent, 2)
+    detailed_results = {k: float(round(v, 3)) for k, v in scale_scores.items()}
+    percentage = float(round(total_percent, 2))
 
     new_result = TestResult(
         test_id=test.id,
@@ -112,9 +113,9 @@ async def save_test_result(
     await db.refresh(new_result)
     
     return {
-        "status": "ok",
-        "total_points": percentage,
+        "status": "completed",
         "detailed_results": detailed_results,
+        "total_score": float(round(sum(float(v) for v in detailed_results.values()), 3)),
         "result_id": str(new_result.id)
     }
 
@@ -124,11 +125,18 @@ async def get_results_for_test(
     test_id: int,
     skip: int = 0,
     limit: int = 10,
+    current_user: User = Depends(check_access_active),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Возвращает результаты теста по его ID с пагинацией.
+    Доступно только владельцу теста.
     """
+    # Проверка прав доступа к тесту
+    test_check = await db.execute(select(Test.id).where(Test.id == test_id, Test.psychologist_id == current_user.id))
+    if not test_check.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
     count_query = select(func.count(TestResult.id)).where(TestResult.test_id == test_id)
     count_res = await db.execute(count_query)
     total_count = count_res.scalar_one()
@@ -156,12 +164,16 @@ async def get_results_for_test(
 
 @router.get("/counts")
 async def get_result_counts(
+    current_user: User = Depends(check_access_active),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Возвращает словарь {test_id: count} — количество результатов по каждому тесту.
+    Возвращает словарь {test_id: count} для тестов текущего психолога.
     """
     rows = await db.execute(
-        select(TestResult.test_id, func.count(TestResult.id)).group_by(TestResult.test_id)
+        select(TestResult.test_id, func.count(TestResult.id))
+        .join(Test, Test.id == TestResult.test_id)
+        .where(Test.psychologist_id == current_user.id)
+        .group_by(TestResult.test_id)
     )
     return {str(test_id): count for test_id, count in rows.all()}

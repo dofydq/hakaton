@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_user, get_current_psychologist
+from app.api.deps import check_access_active
 from app.db.database import get_db
 from app.models.models import Formula, Test, TestSchema, User
 from app.schemas.schemas import TestCreateFull, TestResponseFull, TestImportSchema
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/tests", tags=["tests"])
 @router.post("/import", status_code=status.HTTP_201_CREATED)
 async def import_test(
     data: TestImportSchema,
-    current_user: Annotated[User, Depends(get_current_psychologist)],
+    current_user: User = Depends(check_access_active),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -159,7 +160,7 @@ def validate_test_payload(title: str, logic_tree_json) -> None:
 @router.post("/", response_model=TestResponseFull, status_code=status.HTTP_201_CREATED)
 async def create_test(
     data: TestCreateFull,
-    current_user: Annotated[User, Depends(get_current_psychologist)],
+    current_user: User = Depends(check_access_active),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -201,7 +202,7 @@ async def create_test(
 
 @router.get("/", response_model=List[TestResponseFull])
 async def get_my_tests(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: User = Depends(check_access_active),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -244,7 +245,7 @@ async def get_my_tests(
 @router.get("/{test_id}", response_model=TestResponseFull)
 async def get_test(
     test_id: int,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: User = Depends(check_access_active),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -292,7 +293,7 @@ async def get_test(
 async def update_test(
     test_id: int,
     data: TestCreateFull,
-    current_user: Annotated[User, Depends(get_current_psychologist)],
+    current_user: User = Depends(check_access_active),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -349,7 +350,7 @@ async def update_test(
 @router.get("/{test_id}/sessions")
 async def get_test_sessions(
     test_id: int,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: User = Depends(check_access_active),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -371,7 +372,7 @@ async def get_test_sessions(
 @router.get("/{test_id}/results")
 async def get_test_results(
     test_id: int,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: User = Depends(check_access_active),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -402,7 +403,7 @@ async def get_test_results(
 @router.delete("/{test_id}")
 async def delete_test(
     test_id: int,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: User = Depends(check_access_active),
     db: AsyncSession = Depends(get_db)
 ):
     """

@@ -149,20 +149,36 @@ class Answer(Base):
 
     session: Mapped["Session"] = relationship("Session", back_populates="answers")
 
+class TestLink(Base):
+    __tablename__ = "test_links"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    test_id: Mapped[int] = mapped_column(Integer, ForeignKey("tests.id"))
+    psychologist_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    label: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+    test: Mapped["Test"] = relationship("Test")
+    psychologist: Mapped["User"] = relationship("User")
+
+
 class TestResult(Base):
     __tablename__ = "test_results"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     test_id: Mapped[int] = mapped_column(Integer, ForeignKey("tests.id"))
     user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    link_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("test_links.id"), nullable=True)
     guest_email: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     client_fio: Mapped[str] = mapped_column(String, nullable=False)
+    client_email: Mapped[str] = mapped_column(String, nullable=False)
     answers: Mapped[Any] = mapped_column(JSONB, nullable=False)
     total_points: Mapped[float] = mapped_column(Float, default=0.0)
     detailed_results: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)  # {"scale_tag": score, ...}
     interpretation_result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     max_possible_score: Mapped[float] = mapped_column(Float, default=0.0)
     test_snapshot: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
+    additional_info: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
     secure_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, index=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
