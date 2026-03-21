@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { Moon, Sun, LogOut, Share2, X, Edit3, Upload, Lock } from 'lucide-react';
+import { Moon, Sun, LogOut, Share2, X, Edit3, Upload, Lock, Trash2 } from 'lucide-react';
 import Cookies from 'js-cookie';
 import { api } from '@/lib/api';
 import { GlassButton } from '@/components/ui/GlassButton';
@@ -61,6 +61,28 @@ export default function DashboardPage() {
   const handleLogout = () => {
     Cookies.remove('access_token');
     router.push('/login');
+  };
+
+  const handleDeleteTest = async (testId: number, testTitle: string) => {
+    const confirmed = window.confirm(`Удалить тест "${testTitle}"? Это действие нельзя отменить.`);
+    if (!confirmed) return;
+
+    try {
+      await api.delete(`/tests/${testId}`);
+      setTests(prev => prev.filter((test: any) => test.id !== testId));
+      setResultCounts(prev => {
+        const next = { ...prev };
+        delete next[String(testId)];
+        return next;
+      });
+      if (shareTest?.id === testId) {
+        setShareTest(null);
+      }
+      toast.success('Тест удалён');
+    } catch (err) {
+      console.error(err);
+      toast.error('Не удалось удалить тест');
+    }
   };
 
   const openEditProfile = () => {
@@ -254,6 +276,13 @@ export default function DashboardPage() {
                         </GlassButton>
                         <GlassButton onClick={() => router.push(`/dashboard/constructor/${test.id}`)} className="!py-2 !px-5 text-sm font-medium flex-1 sm:flex-auto">
                           Редактировать
+                        </GlassButton>
+                        <GlassButton
+                          onClick={() => handleDeleteTest(test.id, test.title)}
+                          className="!p-3 !rounded-xl border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-300"
+                          title="Удалить"
+                        >
+                          <Trash2 size={18} />
                         </GlassButton>
                       </div>
                     </div>

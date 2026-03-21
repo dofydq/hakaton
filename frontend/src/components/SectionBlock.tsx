@@ -60,41 +60,80 @@ export const SectionBlock = ({ section, updateSection, deleteSection, updateQues
   const questions = section?.questions || [];
 
   return (
-    <div ref={setNodeRef} style={style} className={`bg-indigo-500/10 dark:bg-indigo-500/5 backdrop-blur-md rounded-3xl p-6 border transition-colors shadow-xl flex flex-col gap-4 relative ${showTypeMenu ? 'border-white/50 dark:border-white/40 z-[100]' : 'border-indigo-400/40 dark:border-indigo-400/20 hover:border-indigo-400/50 z-10'}`}>
-      {/* Header */}
-      <div className="flex items-start gap-4">
-        <div {...attributes} {...listeners} className="cursor-grab hover:bg-white/10 p-2 rounded-xl mt-1">
-          <GripVertical size={24} className="opacity-50" />
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`relative flex flex-col gap-5 rounded-[2rem] border p-4 shadow-xl backdrop-blur-md transition-colors md:p-6 ${showTypeMenu ? 'z-[100] border-white/50 bg-indigo-500/10 dark:border-white/40 dark:bg-indigo-500/5' : 'z-10 border-indigo-400/40 bg-indigo-500/10 hover:border-indigo-400/50 dark:border-indigo-400/20 dark:bg-indigo-500/5'}`}
+    >
+      <div className="flex flex-col gap-4 md:flex-row md:items-start">
+        <div
+          {...attributes}
+          {...listeners}
+          className="flex cursor-grab items-center gap-2 self-start rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] opacity-75 transition hover:bg-white/15"
+        >
+          <GripVertical size={18} className="opacity-70" />
+          <span>Раздел</span>
         </div>
-        <div className="flex-1 space-y-2">
+
+        <div className="min-w-0 flex-1 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] opacity-70">
+              Вопросов: {questions.length}
+            </span>
+            {!isExpanded ? (
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs opacity-60">
+                Свернуто
+              </span>
+            ) : null}
+          </div>
+
           <input
             value={section.title}
             onChange={e => updateSection(section.id, { title: e.target.value })}
-            className="text-xl font-bold bg-transparent border-b-2 border-transparent hover:border-indigo-500/30 focus:border-indigo-500/50 outline-none w-full transition-colors"
+            className="w-full border-b-2 border-transparent bg-transparent text-xl font-bold outline-none transition-colors hover:border-indigo-500/30 focus:border-indigo-500/50"
             placeholder="Название раздела"
           />
           <textarea
             value={section.description}
             onChange={e => updateSection(section.id, { description: e.target.value })}
             placeholder="Краткое описание раздела..."
-            className="text-sm bg-transparent border-b-2 border-transparent hover:border-indigo-500/30 focus:border-indigo-500/50 outline-none w-full resize-y min-h-[40px] opacity-80 transition-colors"
+            className="min-h-[64px] w-full resize-y rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm opacity-85 outline-none transition-colors focus:border-indigo-400/40"
           />
         </div>
-        <button onClick={() => setIsExpanded(!isExpanded)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
-          {isExpanded ? <ChevronUp /> : <ChevronDown />}
-        </button>
-        <button onClick={() => deleteSection(section.id)} className="text-red-500/60 hover:text-red-500 hover:bg-red-500/10 p-2 rounded-xl transition-colors shrink-0">
-          <Trash2 size={20} />
-        </button>
+
+        <div className="flex items-center gap-2 self-start">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="rounded-2xl bg-white/10 px-3 py-2 text-sm font-medium transition-colors hover:bg-white/15"
+            title={isExpanded ? 'Свернуть раздел' : 'Развернуть раздел'}
+          >
+            <span className="flex items-center gap-2">
+              {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              <span className="hidden sm:inline">{isExpanded ? 'Свернуть' : 'Развернуть'}</span>
+            </span>
+          </button>
+          <button
+            onClick={() => deleteSection(section.id)}
+            className="rounded-2xl px-3 py-2 text-sm font-medium text-red-300 transition-colors hover:bg-red-500/10 hover:text-red-200"
+            title="Удалить раздел"
+          >
+            <span className="flex items-center gap-2">
+              <Trash2 size={18} />
+              <span className="hidden sm:inline">Удалить</span>
+            </span>
+          </button>
+        </div>
       </div>
 
-      {/* Body */}
       {isExpanded && (
-        <div className="md:pl-12 pt-4 space-y-4">
+        <div className="space-y-4 md:pl-12">
           <SortableContext items={questions.map(q => q.id || (q as any)._id)} strategy={verticalListSortingStrategy}>
             {questions.length === 0 ? (
-              <div className="p-8 text-center text-sm opacity-50 border-2 border-dashed border-white/20 rounded-2xl">
-                В этом разделе пока нет вопросов. Выберите тип вопроса ниже.
+              <div className="rounded-[1.5rem] border-2 border-dashed border-white/20 bg-white/5 p-8 text-center">
+                <p className="text-base font-semibold">В разделе пока нет вопросов</p>
+                <p className="mt-2 text-sm opacity-65">
+                  Нажмите кнопку ниже и выберите подходящий тип вопроса для клиента.
+                </p>
               </div>
             ) : (
               questions.map(q => (
@@ -103,29 +142,34 @@ export const SectionBlock = ({ section, updateSection, deleteSection, updateQues
             )}
           </SortableContext>
 
-          <div className="relative mt-4">
+          <div className="relative mt-2">
             <button
               onClick={() => setShowTypeMenu(!showTypeMenu)}
-              className="w-full py-4 rounded-xl border-2 border-dashed border-indigo-400/40 hover:bg-indigo-500/10 transition-colors flex items-center justify-center gap-2 font-bold text-sm text-indigo-700 dark:text-indigo-300"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-indigo-400/40 bg-white/5 px-4 py-4 text-sm font-bold text-indigo-700 transition-colors hover:bg-indigo-500/10 dark:text-indigo-300"
             >
               <Plus size={18} /> Добавить вопрос в этот раздел
             </button>
 
             {showTypeMenu && (
-              <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                <div className="bg-slate-900 border border-white/20 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-6 md:p-8 w-full max-w-lg relative animate-in fade-in zoom-in duration-200">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-white">Выберите тип вопроса</h3>
-                    <button onClick={() => setShowTypeMenu(false)} className="text-white/50 hover:text-white hover:bg-white/10 p-2 rounded-xl transition-colors">
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                <div className="relative w-full max-w-2xl rounded-[2rem] border border-white/20 bg-slate-900 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] md:p-8">
+                  <div className="mb-6 flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Выберите тип вопроса</h3>
+                      <p className="mt-2 text-sm text-white/60">
+                        Новый вопрос сразу появится в текущем разделе и будет доступен для редактирования.
+                      </p>
+                    </div>
+                    <button onClick={() => setShowTypeMenu(false)} className="rounded-xl p-2 text-white/50 transition-colors hover:bg-white/10 hover:text-white">
                       <X size={24} />
                     </button>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {QUESTION_TYPES.map(qt => (
                       <button
                         key={qt.type}
                         onClick={() => { onAddQuestion(section.id, qt.type); setShowTypeMenu(false); }}
-                        className="text-left px-5 py-4 hover:bg-white/10 rounded-xl text-sm font-semibold transition-colors flex items-center gap-3 border border-white/5 hover:border-white/20"
+                        className="rounded-2xl border border-white/10 px-5 py-4 text-left text-sm font-semibold text-white transition-colors hover:border-white/20 hover:bg-white/10"
                       >
                         {qt.label}
                       </button>

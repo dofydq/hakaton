@@ -2,5 +2,6 @@
   "python.analysis.extraPaths": [
     "./backend"
   ],
-  "python.analysis.typeCheckingMode": "basic"
+  "python.analysis.typeCheckingMode": "basic",
+  "git.ignoreLimitWarning": true
 }
