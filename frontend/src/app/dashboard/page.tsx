@@ -7,8 +7,8 @@ import { Moon, Sun, LogOut, Share2, X, Edit3, Upload, Lock, Trash2 } from 'lucid
 import Cookies from 'js-cookie';
 import { api } from '@/lib/api';
 import { GlassButton } from '@/components/ui/GlassButton';
-import { Edit2, Save, PlusCircle, Settings, ClipboardList } from 'lucide-react'; // Added new lucide-react icons
-import toast from 'react-hot-toast'; // Added toast import
+import { ClipboardList } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { User, AppTest } from '@/types';
 
 export default function DashboardPage() {
@@ -18,7 +18,7 @@ export default function DashboardPage() {
   const [resultCounts, setResultCounts] = useState<Record<string, number>>({});
   const [shareTest, setShareTest] = useState<AppTest | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   const [editProfileModal, setEditProfileModal] = useState(false);
   const [bio, setBio] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -34,7 +34,6 @@ export default function DashboardPage() {
         const userRes = await api.get('/users/me');
         setUser(userRes.data);
 
-        // Fetch remaining data only if user is psychologist
         if (userRes.data?.role === 'psychologist') {
           const [cardRes, testsRes, countsRes] = await Promise.all([
             api.get('/users/me/business-card').catch(() => ({ data: null })),
@@ -58,7 +57,7 @@ export default function DashboardPage() {
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
-  
+
   const handleLogout = () => {
     Cookies.remove('access_token');
     router.push('/login');
@@ -96,7 +95,7 @@ export default function DashboardPage() {
   const handleProfileSave = async () => {
     setSavingProfile(true);
     try {
-      let newAvatarUrl = user.avatar_url;
+      let newAvatarUrl = user?.avatar_url;
       if (avatarFile) {
         const formData = new FormData();
         formData.append('file', avatarFile);
@@ -105,7 +104,7 @@ export default function DashboardPage() {
         });
         newAvatarUrl = res.data.avatar_url;
       }
-      
+
       const updateRes = await api.put('/users/me', {
         bio_markdown: bio,
         avatar_url: newAvatarUrl
@@ -130,28 +129,24 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen p-8">
-      {/* Шапка */}
       <header className="flex justify-between items-center mb-12 max-w-6xl mx-auto">
         <h1 className="text-2xl font-bold">Личный кабинет</h1>
         <div className="flex gap-4">
           <GlassButton onClick={toggleTheme} className="!p-3 !rounded-full flex items-center justify-center">
-             {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
           </GlassButton>
           <GlassButton onClick={handleLogout} className="!p-3 !rounded-full sm:!rounded-2xl sm:px-6 flex gap-2 items-center">
-             <LogOut size={20} /> <span className="hidden sm:inline">Выйти</span>
+            <LogOut size={20} /> <span className="hidden sm:inline">Выйти</span>
           </GlassButton>
         </div>
       </header>
 
-      {/* Контент: сетка */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
-        
-        {/* Карточка профиля */}
         <div className="p-8 rounded-3xl backdrop-blur-xl bg-white/30 dark:bg-black/30 shadow-2xl border border-white/20">
           <div className="flex justify-between items-center mb-6 border-b border-black/10 dark:border-white/10 pb-4">
             <h2 className="text-xl font-semibold">Профиль</h2>
             <GlassButton onClick={openEditProfile} className="!p-2 !rounded-xl" title="Редактировать">
-               <Edit3 size={18} />
+              <Edit3 size={18} />
             </GlassButton>
           </div>
 
@@ -197,7 +192,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Условный рендеринг по роли */}
         {user?.role === 'admin' ? (
           <div className="p-8 rounded-3xl backdrop-blur-xl bg-white/30 dark:bg-black/30 shadow-2xl border border-white/20">
             <h2 className="text-xl font-semibold mb-6 border-b border-black/10 dark:border-white/10 pb-4">Управление психологами</h2>
@@ -205,15 +199,14 @@ export default function DashboardPage() {
           </div>
         ) : user?.role === 'psychologist' ? (
           <>
-            {/* Карточка визитки (только для психолога) */}
             <div className="p-8 rounded-3xl backdrop-blur-xl bg-white/30 dark:bg-black/30 shadow-2xl border border-white/20 flex flex-col items-center justify-center">
               <h2 className="text-xl font-semibold mb-6 border-b border-black/10 dark:border-white/10 pb-4 w-full text-center">Визитка для клиента</h2>
-              
+
               {businessCard?.qr_code_base64 ? (
                 <div className="p-4 bg-white/50 dark:bg-white/10 rounded-3xl shadow-lg mb-6 backdrop-blur-md">
-                  <img 
-                    src={businessCard.qr_code_base64} 
-                    alt="QR Code" 
+                  <img
+                    src={businessCard.qr_code_base64}
+                    alt="QR Code"
                     className="w-56 h-56 object-contain rounded-xl mix-blend-multiply dark:mix-blend-normal bg-white"
                   />
                 </div>
@@ -222,11 +215,11 @@ export default function DashboardPage() {
                   Визитка не загружена
                 </div>
               )}
-              
+
               {businessCard?.card_url ? (
-                <a 
-                  href={businessCard.card_url} 
-                  target="_blank" 
+                <a
+                  href={businessCard.card_url}
+                  target="_blank"
                   rel="noreferrer"
                   className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline font-medium break-all text-center transition-colors"
                 >
@@ -235,7 +228,6 @@ export default function DashboardPage() {
               ) : null}
             </div>
 
-            {/* Секция: Управление тестами */}
             <div className="md:col-span-2 p-8 rounded-3xl backdrop-blur-xl bg-white/30 dark:bg-black/30 shadow-2xl border border-white/20 mt-2">
               <div className="flex flex-col sm:flex-row justify-between items-center mb-6 border-b border-black/10 dark:border-white/10 pb-4 gap-4">
                 <h2 className="text-xl font-semibold w-full sm:w-auto text-center sm:text-left">Управление тестами</h2>
@@ -305,23 +297,22 @@ export default function DashboardPage() {
             </GlassButton>
           </div>
         )}
-
       </div>
 
       {shareTest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all">
           <div className="bg-white/80 dark:bg-black/80 backdrop-blur-3xl rounded-3xl p-8 max-w-sm w-full shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] border border-white/20 relative flex flex-col items-center">
-            <button 
-              onClick={() => setShareTest(null)} 
+            <button
+              onClick={() => setShareTest(null)}
               className="absolute top-6 right-6 text-slate-500 hover:text-black dark:text-slate-400 dark:hover:text-white transition-colors bg-black/5 dark:bg-white/5 p-2 rounded-full"
             >
               <X size={20} />
             </button>
             <h3 className="text-xl font-bold mb-8">Поделиться тестом</h3>
             <div className="bg-white p-4 rounded-2xl mb-6 flex items-center justify-center shadow-inner">
-              <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`http://localhost:3000/test/${shareTest.id}`)}`} 
-                alt="Test QR Code" 
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`http://localhost:3000/test/${shareTest.id}`)}`}
+                alt="Test QR Code"
                 className="w-48 h-48 mix-blend-multiply"
               />
             </div>
@@ -335,77 +326,72 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Модалка Редактирования Профиля */}
       {editProfileModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all">
-          <div className="bg-white/90 dark:bg-black/90 backdrop-blur-3xl rounded-3xl p-8 max-w-md w-full shadow-2xl border border-white/20 relative flex flex-col gap-6">
-            <button 
-              onClick={() => setEditProfileModal(false)} 
-              className="absolute top-6 right-6 text-slate-500 hover:text-black dark:text-slate-400 dark:hover:text-white transition-colors bg-black/5 dark:bg-white/5 p-2 rounded-full"
+          <div className="relative flex w-full max-w-lg flex-col gap-6 rounded-[2rem] border border-white/15 bg-white/20 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl dark:bg-black/45 md:p-8">
+            <button
+              onClick={() => setEditProfileModal(false)}
+              className="absolute right-5 top-5 rounded-2xl border border-white/10 bg-white/10 p-2.5 text-slate-500 transition-colors hover:bg-white/15 hover:text-black dark:bg-white/5 dark:text-slate-400 dark:hover:text-white"
             >
               <X size={20} />
             </button>
-            <h3 className="text-2xl font-bold">Редактировать профиль</h3>
 
-            <div className="flex flex-col items-center gap-4">
-               <div className="w-32 h-32 rounded-full border-4 border-white/50 shadow-lg overflow-hidden bg-white/10 flex items-center justify-center relative group">
+            <div className="space-y-2 pr-12">
+              <h3 className="text-2xl font-bold tracking-tight">Редактировать профиль</h3>
+              <p className="text-sm leading-relaxed text-black/60 dark:text-white/60">
+                Обновите аватар и краткое описание, чтобы профиль выглядел аккуратно и целостно.
+              </p>
+            </div>
+
+            <div className="rounded-[1.75rem] border border-white/15 bg-white/10 p-5 backdrop-blur-md">
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-4 border-white/30 bg-white/10 shadow-lg group">
                   {avatarPreview ? (
                     <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
                     <span className="opacity-50 text-sm">Нет фото</span>
                   )}
-                  <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer text-white">
-                     <Upload size={24} />
-                     <input 
-                       type="file" 
-                       accept="image/*" 
-                       className="hidden" 
-                       onChange={(e) => {
-                         if (e.target.files && e.target.files[0]) {
-                           const file = e.target.files[0];
-                           setAvatarFile(file);
-                           setAvatarPreview(URL.createObjectURL(file));
-                         }
-                       }} 
-                     />
+                  <label className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black/45 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                    <Upload size={24} />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          const file = e.target.files[0];
+                          setAvatarFile(file);
+                          setAvatarPreview(URL.createObjectURL(file));
+                        }
+                      }}
+                    />
                   </label>
-               </div>
-               <p className="text-xs opacity-60">Нажмите на область, чтобы загрузить фото</p>
+                </div>
+                <div className="space-y-1 text-center">
+                  <p className="text-sm font-medium">Фото профиля</p>
+                  <p className="text-xs opacity-60">Нажмите на аватар, чтобы загрузить новое изображение</p>
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-               <div className="flex items-center justify-between">
-                 <label className="text-sm font-semibold opacity-80">О себе (Markdown)</label>
-                 <button
-                   type="button"
-                   onClick={() => setBio(prev =>
-                     prev.includes('**жирный**')
-                       ? prev.replace('\n\n---ПОДСКАЗКА---\n# Заголовок\n**жирный** _курсив_\n- Пункт списка\n> Цитата', '')
-                       : prev + '\n\n---ПОДСКАЗКА---\n# Заголовок\n**жирный** _курсив_\n- Пункт списка\n> Цитата'
-                   )}
-                   className="text-xs text-blue-600 dark:text-blue-400 hover:underline opacity-70 hover:opacity-100 flex items-center gap-1"
-                 >
-                   <span>📝</span> Markdown-синтаксис
-                 </button>
-               </div>
-               <div className="text-xs opacity-50 bg-white/30 dark:bg-white/5 rounded-xl p-3 border border-white/20 font-mono leading-relaxed">
-                 <span className="font-bold"># Заголовок</span> &nbsp;|&nbsp; <span className="font-bold">**жирный**</span> &nbsp;|&nbsp; <span className="italic">_курсив_</span> &nbsp;|&nbsp; <span>- список</span> &nbsp;|&nbsp; <span>&gt; цитата</span>
-               </div>
-               <textarea
+            <div className="rounded-[1.75rem] border border-white/15 bg-white/10 p-5 backdrop-blur-md">
+              <div className="flex flex-col gap-3">
+                <label className="text-sm font-semibold opacity-75">О себе</label>
+                <textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  placeholder={"# Обо мне\n\nРасскажите о себе, опыте и методах работы...\n\n- Подход 1\n- Подход 2"}
-                  className="w-full bg-white/60 dark:bg-black/60 border border-white/30 dark:border-white/10 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/50 backdrop-blur-sm transition-all min-h-[120px] resize-y font-mono text-sm"
-               />
+                  placeholder={'Расскажите о себе, вашем опыте и подходе к работе.\nЭто увидят ваши клиенты перед началом теста.'}
+                  className="min-h-[160px] w-full resize-y rounded-2xl border border-white/15 bg-white/10 px-4 py-3.5 font-mono text-sm outline-none transition-all backdrop-blur-sm focus:border-blue-400/40 focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
             </div>
 
-            <GlassButton onClick={handleProfileSave} disabled={savingProfile} className="!w-full !py-3 font-semibold text-white bg-blue-500 hover:bg-blue-600">
-               {savingProfile ? 'Сохранение...' : 'Сохранить изменения'}
+            <GlassButton onClick={handleProfileSave} disabled={savingProfile} className="!w-full !rounded-2xl !py-3.5 border border-blue-400/20 bg-blue-500/80 font-semibold text-white shadow-lg shadow-blue-500/20 hover:bg-blue-600">
+              {savingProfile ? 'Сохранение...' : 'Сохранить изменения'}
             </GlassButton>
           </div>
         </div>
       )}
-
     </main>
   );
 }

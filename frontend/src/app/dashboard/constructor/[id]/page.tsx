@@ -39,6 +39,7 @@ export default function ConstructorPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isPreview, setIsPreview] = useState(false);
+  const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [reportConfig, setReportConfig] = useState({
     show_table: true,
@@ -50,6 +51,9 @@ export default function ConstructorPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  const toolbarButtonClass = '!h-11 !px-5 !py-0 min-w-[132px] text-sm font-semibold flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 text-white shadow-lg backdrop-blur-xl transition-all hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25';
+  const primaryToolbarButtonClass = '!h-11 !px-6 !py-0 min-w-[132px] text-sm font-bold flex items-center justify-center gap-2 rounded-2xl border border-white/25 bg-white/20 text-white shadow-lg backdrop-blur-xl transition-all hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25 disabled:opacity-70';
 
   useEffect(() => {
     if (id && id !== 'new') {
@@ -284,11 +288,46 @@ export default function ConstructorPage() {
       );
     }
 
+    if (question.type === 'scale') {
+      return (
+        <div className="mt-5 rounded-[1.5rem] border border-white/15 bg-white/5 p-4 backdrop-blur-sm">
+          <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
+            {Array.from({ length: 10 }, (_, index) => (
+              <div
+                key={index}
+                className="flex aspect-square items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-sm font-semibold text-white/80 shadow-sm"
+              >
+                {index + 1}
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex justify-between text-xs uppercase tracking-[0.18em] text-white/45">
+            <span>Минимум</span>
+            <span>Максимум</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (question.type === 'slider') {
+      return (
+        <div className="mt-5 rounded-[1.5rem] border border-white/15 bg-white/5 p-5 backdrop-blur-sm">
+          <div className="relative mx-1 h-3 rounded-full bg-white/10">
+            <div className="absolute inset-y-0 left-0 w-1/2 rounded-full bg-blue-400/45" />
+            <div className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/25 bg-white/80 shadow-[0_6px_18px_rgba(0,0,0,0.22)]" />
+          </div>
+          <div className="mt-4 flex justify-between text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
+            <span>Мин</span>
+            <span>Среднее</span>
+            <span>Макс</span>
+          </div>
+        </div>
+      );
+    }
+
     const placeholders: Record<string, string> = {
       text: 'Поле для свободного ответа',
       number: 'Поле для ввода числа',
-      scale: 'Шкала оценки от 1 до 10',
-      slider: 'Слайдер диапазона',
       date: 'Выбор даты и времени',
     };
 
@@ -308,83 +347,111 @@ export default function ConstructorPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-white/5">
-      <header className="flex-none border-b-2 border-white/10 dark:border-black/20 bg-white/10 dark:bg-black/10 backdrop-blur-xl shadow-sm">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:px-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
-              <GlassButton onClick={() => router.push('/dashboard')} className="!p-3 !px-4 !rounded-2xl shrink-0 flex items-center gap-2" title="На дашборд">
-                <ArrowLeft size={20} /> <span className="hidden sm:inline font-medium text-sm">Назад</span>
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#020617] via-[#111827] to-[#1f2937] text-white">
+      <header className="flex-none border-b border-white/10 bg-black/20 backdrop-blur-2xl shadow-sm">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 md:px-8">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <GlassButton onClick={() => router.push('/dashboard')} className={toolbarButtonClass} title="На дашборд">
+                <ArrowLeft size={18} /> <span className="font-medium text-sm">Назад</span>
               </GlassButton>
 
-              <div className="min-w-0 flex-1 rounded-3xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-md">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/10 px-4 py-2 backdrop-blur-2xl shadow-lg">
                 <input
                   value={title}
                   onChange={e => setTitle(e.target.value)}
-                  className="w-full bg-transparent text-xl font-bold outline-none md:text-2xl"
+                  className="w-full bg-transparent text-lg font-bold leading-tight tracking-tight text-white outline-none placeholder:text-white/35 md:text-xl"
                   placeholder="Заголовок теста"
                 />
-                <textarea
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  placeholder="Кратко опишите тест для клиента"
-                  className="mt-2 min-h-[52px] w-full resize-none bg-transparent text-sm opacity-80 outline-none md:text-base"
-                />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsDescriptionModalOpen(true)}
+                  className="inline-flex h-11 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 px-4 text-sm font-semibold text-white shadow-lg backdrop-blur-xl transition-all hover:bg-white/15"
+                >
+                  {description ? 'Р РµРґР°РєС‚РёСЂРѕРІР°С‚СЊ РѕРїРёСЃР°РЅРёРµ' : 'РћРїРёСЃР°РЅРёРµ С‚РµСЃС‚Р°'}
+                </button>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="ml-auto flex shrink-0 flex-wrap items-center gap-3 xl:justify-end">
               <input type="file" id="import-json" accept=".json" className="hidden" onChange={importJSON} />
 
-              <GlassButton onClick={() => setIsPreview(prev => !prev)} className="!p-2 !px-4 text-sm font-medium flex items-center gap-2 bg-white/15 hover:bg-white/25">
+              <GlassButton onClick={() => setIsPreview(prev => !prev)} className={toolbarButtonClass}>
                 {isPreview ? <PencilLine size={18} /> : <Eye size={18} />}
-                <span>{isPreview ? 'Вернуться к редактированию' : 'Предпросмотр'}</span>
+                <span>{isPreview ? 'Редактирование' : 'Предпросмотр'}</span>
               </GlassButton>
 
-              <GlassButton onClick={() => document.getElementById('import-json')?.click()} className="!p-2 !px-4 text-sm font-medium flex items-center gap-2 bg-slate-800/50 hover:bg-slate-800 text-white">
-                <Upload size={18} /> <span className="hidden md:inline">Импорт JSON</span>
+              <GlassButton onClick={() => document.getElementById('import-json')?.click()} className={toolbarButtonClass}>
+                <Upload size={18} /> <span>Импорт JSON</span>
               </GlassButton>
 
-              <GlassButton onClick={exportJSON} className="!p-2 !px-4 text-sm font-medium flex items-center gap-2 bg-slate-800/50 hover:bg-slate-800 text-white">
-                <Download size={18} /> <span className="hidden md:inline">Экспорт JSON</span>
+              <GlassButton onClick={exportJSON} className={toolbarButtonClass}>
+                <Download size={18} /> <span>Экспорт JSON</span>
               </GlassButton>
 
-              <GlassButton onClick={saveTest} disabled={saving} className="flex gap-2 items-center bg-blue-500/80 hover:bg-blue-600/90 text-white font-semibold shadow-blue-500/30 py-2 px-5">
+              <GlassButton onClick={saveTest} disabled={saving} className={primaryToolbarButtonClass}>
                 {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                <span className="hidden sm:inline">{saving ? 'Сохранение...' : 'Сохранить тест'}</span>
+                <span>{saving ? 'Сохранение...' : 'Сохранить тест'}</span>
               </GlassButton>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.2em] opacity-60">
-            <span>Разделов: {sections.length}</span>
-            <span>Вопросов: {totalQuestions}</span>
-            <span>{isPreview ? 'Режим просмотра клиента' : 'Режим редактирования'}</span>
+          <div className="hidden xl:pl-[147px]">
+            <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 shadow-lg backdrop-blur-2xl">
+              <input
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                className="w-full bg-transparent text-lg font-bold leading-tight tracking-tight text-white outline-none placeholder:text-white/35 md:text-xl"
+                placeholder="Р—Р°РіРѕР»РѕРІРѕРє С‚РµСЃС‚Р°"
+              />
+              <div className="mt-3 border-t border-white/10 pt-3">
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Кратко опишите тест для клиента"
+                className="min-h-[54px] w-full resize-none bg-transparent text-sm leading-relaxed text-white/72 outline-none placeholder:text-white/30"
+              />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.24em] text-white/55 xl:pl-[147px]">
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">Разделов: {sections.length}</span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">Вопросов: {totalQuestions}</span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">{isPreview ? 'Режим просмотра клиента' : 'Режим редактирования'}</span>
           </div>
         </div>
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-10">
         <div className="mx-auto max-w-5xl pb-24">
+          <div className="hidden mb-6 flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.24em] text-white/55">
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">Р Р°Р·РґРµР»РѕРІ: {sections.length}</span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">Р’РѕРїСЂРѕСЃРѕРІ: {totalQuestions}</span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">{isPreview ? 'Р РµР¶РёРј РїСЂРѕСЃРјРѕС‚СЂР° РєР»РёРµРЅС‚Р°' : 'Р РµР¶РёРј СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ'}</span>
+          </div>
+
           {isPreview ? (
             <div className="space-y-8">
               <section className="rounded-[2rem] border border-white/20 bg-white/10 p-6 shadow-2xl backdrop-blur-2xl md:p-8">
-                <p className="mb-3 text-xs font-bold uppercase tracking-[0.3em] opacity-60">Предпросмотр для клиента</p>
+                <p className="mb-3 text-xs font-bold uppercase tracking-[0.3em] text-white/60">Предпросмотр для клиента</p>
                 <h1 className="text-3xl font-black md:text-4xl">{title || 'Без названия'}</h1>
-                <p className="mt-4 max-w-3xl text-sm opacity-75 md:text-base">{description || 'Описание теста пока не заполнено.'}</p>
+                <p className="mt-4 max-w-3xl text-sm text-white/70 md:text-base">{description || 'Описание теста пока не заполнено.'}</p>
               </section>
 
               {sections.length === 0 ? (
-                <div className="rounded-[2rem] border border-dashed border-white/20 bg-white/5 px-6 py-10 text-center opacity-70 backdrop-blur-md">
+                <div className="rounded-[2rem] border border-dashed border-white/20 bg-white/5 px-6 py-10 text-center text-white/65 backdrop-blur-md">
                   Добавьте хотя бы один раздел, чтобы увидеть предпросмотр теста.
                 </div>
               ) : (
                 sections.map((section, sectionIndex) => (
                   <section key={section.id} className="rounded-[2rem] border border-white/20 bg-white/10 p-5 shadow-xl backdrop-blur-2xl md:p-8">
                     <div className="mb-6 border-b border-white/10 pb-4">
-                      <p className="mb-2 text-xs font-bold uppercase tracking-[0.25em] opacity-50">Раздел {sectionIndex + 1}</p>
+                      <p className="mb-2 text-xs font-bold uppercase tracking-[0.25em] text-white/50">Раздел {sectionIndex + 1}</p>
                       <h2 className="text-2xl font-bold">{section.title || 'Без названия раздела'}</h2>
-                      {section.description ? <p className="mt-3 text-sm opacity-75 md:text-base">{section.description}</p> : null}
+                      {section.description ? <p className="mt-3 text-sm text-white/70 md:text-base">{section.description}</p> : null}
                     </div>
 
                     <div className="space-y-5">
@@ -392,7 +459,7 @@ export default function ConstructorPage() {
                         section.questions.map((question, questionIndex) => (
                           <article key={question.id} className="rounded-[1.5rem] border border-white/15 bg-white/5 p-5 backdrop-blur-md">
                             <div className="flex flex-wrap items-center gap-3">
-                              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] opacity-70">
+                              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
                                 Вопрос {questionIndex + 1}
                               </span>
                               {question.isRequired ? (
@@ -402,12 +469,12 @@ export default function ConstructorPage() {
                               ) : null}
                             </div>
                             <h3 className="mt-4 text-lg font-bold md:text-xl">{question.title || 'Без заголовка'}</h3>
-                            {question.description ? <p className="mt-2 text-sm opacity-70">{question.description}</p> : null}
+                            {question.description ? <p className="mt-2 text-sm text-white/65">{question.description}</p> : null}
                             {renderPreviewQuestion(question)}
                           </article>
                         ))
                       ) : (
-                        <div className="rounded-2xl border border-dashed border-white/15 bg-white/5 px-4 py-6 text-sm opacity-65">
+                        <div className="rounded-2xl border border-dashed border-white/15 bg-white/5 px-4 py-6 text-sm text-white/60">
                           В этом разделе пока нет вопросов.
                         </div>
                       )}
@@ -418,7 +485,7 @@ export default function ConstructorPage() {
             </div>
           ) : (
             <>
-              <div className="mb-6 rounded-[2rem] border border-white/10 bg-white/5 px-5 py-4 text-sm opacity-75 backdrop-blur-md">
+              <div className="hidden">
                 Перетаскивайте разделы и вопросы, редактируйте текст прямо в карточках и используйте предпросмотр, чтобы быстро проверить клиентский вид.
               </div>
 
@@ -446,37 +513,37 @@ export default function ConstructorPage() {
                 </div>
               </DndContext>
 
-              <GlassButton onClick={addSection} className="w-full mt-10 py-5 border-2 border-dashed border-white/20 hover:border-white/50 bg-white/5 hover:bg-white/10 text-white font-bold text-base md:text-lg flex items-center justify-center gap-3 transition-colors">
+              <GlassButton onClick={addSection} className="w-full mt-10 min-h-[60px] border-2 border-dashed border-white/20 bg-white/5 text-white font-bold text-base md:text-lg flex items-center justify-center gap-3 shadow-lg transition-all hover:bg-white/10 hover:border-white/30">
                 <Plus size={22} /> Добавить новый раздел
               </GlassButton>
 
               <div className="mt-12 rounded-[2rem] border border-white/20 bg-white/10 p-6 shadow-xl backdrop-blur-2xl md:p-8">
                 <h3 className="text-xl font-bold mb-6">Настройки отчета (DOCX)</h3>
                 <div className="flex flex-col gap-4">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input 
-                      type="checkbox" 
+                  <label className="flex items-center gap-3 cursor-pointer rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                    <input
+                      type="checkbox"
                       className="w-5 h-5 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500"
                       checked={reportConfig.show_table}
-                      onChange={e => setReportConfig(prev => ({...prev, show_table: e.target.checked}))}
+                      onChange={e => setReportConfig(prev => ({ ...prev, show_table: e.target.checked }))}
                     />
                     <span className="font-medium">Показывать таблицу баллов и ответов</span>
                   </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input 
-                      type="checkbox" 
+                  <label className="flex items-center gap-3 cursor-pointer rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                    <input
+                      type="checkbox"
                       className="w-5 h-5 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500"
                       checked={reportConfig.show_chart}
-                      onChange={e => setReportConfig(prev => ({...prev, show_chart: e.target.checked}))}
+                      onChange={e => setReportConfig(prev => ({ ...prev, show_chart: e.target.checked }))}
                     />
                     <span className="font-medium">Показывать графики (в разработке)</span>
                   </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input 
-                      type="checkbox" 
+                  <label className="flex items-center gap-3 cursor-pointer rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                    <input
+                      type="checkbox"
                       className="w-5 h-5 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500"
                       checked={reportConfig.show_interpretation}
-                      onChange={e => setReportConfig(prev => ({...prev, show_interpretation: e.target.checked}))}
+                      onChange={e => setReportConfig(prev => ({ ...prev, show_interpretation: e.target.checked }))}
                     />
                     <span className="font-medium">Показывать краткое заключение (интерпретацию)</span>
                   </label>
@@ -486,6 +553,44 @@ export default function ConstructorPage() {
           )}
         </div>
       </div>
+
+      {isDescriptionModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-[2rem] border border-white/20 bg-slate-900 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] md:p-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-white">РћРїРёСЃР°РЅРёРµ С‚РµСЃС‚Р°</h2>
+                <p className="mt-2 text-sm text-white/60">РћС‚СЂРµРґР°РєС‚РёСЂСѓР№С‚Рµ РєСЂР°С‚РєРѕРµ РѕРїРёСЃР°РЅРёРµ РґР»СЏ РєР»РёРµРЅС‚Р°.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDescriptionModalOpen(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label="Р—Р°РєСЂС‹С‚СЊ"
+              >
+                ×
+              </button>
+            </div>
+
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="РљСЂР°С‚РєРѕ РѕРїРёС€РёС‚Рµ С‚РµСЃС‚ РґР»СЏ РєР»РёРµРЅС‚Р°"
+              className="mt-6 min-h-[180px] w-full resize-none rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm leading-relaxed text-white outline-none placeholder:text-white/30 focus:border-white/20"
+            />
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsDescriptionModalOpen(false)}
+                className="inline-flex h-11 items-center justify-center rounded-2xl border border-white/15 bg-white/10 px-5 text-sm font-semibold text-white transition-all hover:bg-white/15"
+              >
+                Р—Р°РєСЂС‹С‚СЊ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
