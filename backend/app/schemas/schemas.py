@@ -41,6 +41,18 @@ class UserUpdateProfile(BaseModel):
     bio: Optional[str] = None
     bio_markdown: Optional[str] = None
     avatar_url: Optional[str] = None
+    access_until: Optional[datetime] = None
+
+# Alias for generic UserUpdate as requested by user
+UserUpdate = UserUpdateProfile
+
+class UserAdminUpdate(UserUpdateProfile):
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
+
+class AdminUserResponse(UserRead):
+    # This matches UserRead but we can keep the alias for clarity in admin.py
+    pass
 
 
 # --- Report config ---
