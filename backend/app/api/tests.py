@@ -207,11 +207,19 @@ async def get_my_tests(
 ):
     """
     Возвращает список всех тестов созданных авторизованным психологом.
+    Админы видят все тесты.
     """
-    query = select(Test).where(Test.psychologist_id == current_user.id).options(
+    from app.models.enums import UserRole
+    
+    query = select(Test).options(
         selectinload(Test.schemas),
         selectinload(Test.formulas)
-    ).order_by(Test.id.desc())
+    )
+    
+    if current_user.role != UserRole.admin:
+        query = query.where(Test.psychologist_id == current_user.id)
+        
+    query = query.order_by(Test.id.desc())
 
     result = await db.execute(query)
     tests = result.scalars().all()

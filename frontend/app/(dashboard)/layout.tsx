@@ -13,21 +13,10 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const router = useRouter()
-  const { isAuthenticated, user, isLoading, isPending, setLoading } = useAuthStore()
+  const { isAuthenticated, user, isLoading, isPending } = useAuthStore()
 
-  useEffect(() => {
-    // Check auth state on mount
-    const checkAuth = () => {
-      setLoading(false)
-      if (!isAuthenticated) {
-        router.push('/login')
-      } else if (isPending()) {
-        router.push('/pending')
-      }
-    }
-    
-    checkAuth()
-  }, [isAuthenticated, isPending, router, setLoading])
+  // Удаляем useEffect с редиректом, так как теперь Middleware защищает маршруты на стороне сервера.
+  // Это предотвращает гонку состояний при первом входе.
 
   if (isLoading) {
     return (
@@ -37,7 +26,15 @@ export default function DashboardLayout({
     )
   }
 
+  // Если мы попали сюда, значит Middleware разрешил доступ (токен в куках есть).
+  // Если Zustand еще не подхватил пользователя, просто ждем или показываем null.
   if (!isAuthenticated || !user) {
+    return null
+  }
+
+  // Обработка статуса ожидания (можно оставить здесь или перенести в Middleware)
+  if (isPending() && typeof window !== 'undefined' && !window.location.pathname.startsWith('/pending')) {
+    router.replace('/pending')
     return null
   }
 

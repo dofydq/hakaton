@@ -10,8 +10,8 @@ export function SubscriptionBanner() {
   const { user, isSubscriptionActive } = useAuthStore()
   const [dismissed, setDismissed] = useState(false)
 
-  // Don't show if subscription is active or no user
-  if (!user || isSubscriptionActive() || dismissed) {
+  // Don't show if subscription is active, no user, or user is admin
+  if (!user || isSubscriptionActive() || user.role === 'admin' || dismissed) {
     return null
   }
 

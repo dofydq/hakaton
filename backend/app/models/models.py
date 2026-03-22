@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, Text, UUID
@@ -95,7 +95,7 @@ class Session(Base):
     test_id: Mapped[int] = mapped_column(Integer, ForeignKey("tests.id"))
     client_fio: Mapped[str] = mapped_column(String, nullable=False)
     client_extra_data_json: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
-    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     current_progress_percent: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[str] = mapped_column(String, default="started")  # started | completed
@@ -156,7 +156,7 @@ class TestLink(Base):
     test_id: Mapped[int] = mapped_column(Integer, ForeignKey("tests.id"))
     psychologist_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     label: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     test: Mapped["Test"] = relationship("Test")
     psychologist: Mapped["User"] = relationship("User")
@@ -180,7 +180,8 @@ class TestResult(Base):
     test_snapshot: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
     additional_info: Mapped[Optional[Any]] = mapped_column(JSONB, nullable=True)
     secure_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, index=True)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     test: Mapped["Test"] = relationship("Test")
+    user: Mapped[Optional["User"]] = relationship("User")
 

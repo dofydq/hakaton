@@ -104,6 +104,59 @@ class ReportGenerator:
     # Public
     # ------------------------------------------------------------------
 
+    def _setup_document(self, doc: Document) -> None:
+        """Настройка полей и базовых параметров документа."""
+        sections = doc.sections
+        for section in sections:
+            section.top_margin = Cm(2)
+            section.bottom_margin = Cm(2)
+            section.left_margin = Cm(2.5)
+            section.right_margin = Cm(1.5)
+
+    def _add_logo(self, doc: Document) -> None:
+        """Место для логотипа компании (заглушка)."""
+        # doc.add_picture('logo.png', width=Cm(4))
+        pass
+
+    def _add_title(self, doc: Document) -> None:
+        """Главный заголовок отчёта."""
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = p.add_run("ОТЧЁТ О ПРОХОЖДЕНИИ ТЕСТИРОВАНИЯ")
+        run.bold = True
+        run.font.size = Pt(18)
+        run.font.color.rgb = RGBColor(0, 51, 102)
+        doc.add_paragraph()
+
+    def _add_personal_info(
+        self, doc: Document, user_name: str, test_title: str, score: float
+    ) -> None:
+        """Информационный блок с данными респондента."""
+        _section_heading(doc, "Карточка респондента")
+        _bold_kv(doc, "ФИО", user_name)
+        _bold_kv(doc, "Название теста", test_title)
+        _bold_kv(doc, "Общий балл (%)", f"{score:.1f}%")
+        doc.add_paragraph()
+
+    def _add_answers_table(self, doc: Document, answers_list: list[dict[str, str]]) -> None:
+        """Таблица с детальными ответами на вопросы."""
+        _section_heading(doc, "Детальные ответы")
+        table = doc.add_table(rows=1, cols=2)
+        _table_borders(table)
+        hdr = table.rows[0].cells
+        hdr[0].text = "Вопрос"
+        hdr[1].text = "Ответ"
+        _shade_cell(hdr[0], "E8EDF3")
+        _shade_cell(hdr[1], "E8EDF3")
+        hdr[0].paragraphs[0].runs[0].bold = True
+        hdr[1].paragraphs[0].runs[0].bold = True
+
+        for item in answers_list:
+            row = table.add_row().cells
+            row[0].text = str(item.get("question", ""))
+            row[1].text = str(item.get("answer", ""))
+        doc.add_paragraph()
+
     def build(
         self,
         user_name: str,

@@ -86,9 +86,9 @@ export default function PublicTestPage() {
     try {
       await publicApi.submit({
         link_id: linkId,
-        answers,
-        client_name: clientInfo.name || undefined,
-        client_email: clientInfo.email || undefined,
+        answers_json: answers,
+        client_fio: clientInfo.name,
+        client_email: clientInfo.email.trim() || undefined,
       })
       router.push(`/test/${linkId}/success`)
     } catch (error) {
@@ -99,6 +99,11 @@ export default function PublicTestPage() {
 
   const isCurrentAnswered = currentQuestion && answers[currentQuestion.id]
   const canSubmit = Object.keys(answers).length === totalQuestions
+  
+  const isEmailValid = (email: string) => {
+    if (!email.trim()) return true // Optional
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
@@ -158,7 +163,7 @@ export default function PublicTestPage() {
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="email">Ваш email</FieldLabel>
+                    <FieldLabel htmlFor="email">Ваш email (необязательно)</FieldLabel>
                     <Input
                       id="email"
                       type="email"
@@ -166,12 +171,19 @@ export default function PublicTestPage() {
                       value={clientInfo.email}
                       onChange={(e) => setClientInfo({ ...clientInfo, email: e.target.value })}
                     />
+                    {!isEmailValid(clientInfo.email) && (
+                      <p className="mt-1 text-xs text-destructive">Введите корректный адрес почты</p>
+                    )}
                   </Field>
                 </FieldGroup>
               </div>
             </CardContent>
             <CardFooter className="justify-center">
-              <Button size="lg" onClick={handleNext} disabled={!clientInfo.name.trim() || !clientInfo.email.trim()}>
+              <Button 
+                size="lg" 
+                onClick={handleNext} 
+                disabled={!clientInfo.name.trim() || !isEmailValid(clientInfo.email)}
+              >
                 Начать тест
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>

@@ -130,18 +130,28 @@ async def get_results_for_test(
 ):
     """
     Возвращает результаты теста по его ID с пагинацией.
-    Доступно только владельцу теста.
+    Доступно владельцу теста или администратору.
     """
-    # Проверка прав доступа к тесту
-    test_check = await db.execute(select(Test.id).where(Test.id == test_id, Test.psychologist_id == current_user.id))
-    if not test_check.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    from app.models.enums import UserRole
+    
+    # Проверка прав доступа к тесту (админ видит всё, психолог — только своё)
+    if current_user.role != UserRole.admin:
+        test_check = await db.execute(select(Test.id).where(Test.id == test_id, Test.psychologist_id == current_user.id))
+        if not test_check.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     count_query = select(func.count(TestResult.id)).where(TestResult.test_id == test_id)
     count_res = await db.execute(count_query)
     total_count = count_res.scalar_one()
 
-    query = select(TestResult).where(TestResult.test_id == test_id).order_by(TestResult.created_at.desc()).offset(skip).limit(limit)
+    query = (
+        select(TestResult)
+        .where(TestResult.test_id == test_id)
+        .options(selectinload(TestResult.user))
+        .order_by(TestResult.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
     result = await db.execute(query)
     results = result.scalars().all()
     
@@ -150,15 +160,56 @@ async def get_results_for_test(
             {
                 "id": str(r.id),
                 "client_fio": r.client_fio,
+                "client_email": r.guest_email if r.guest_email else (r.user.email if r.user else None),
                 "total_points": r.total_points,
                 "detailed_results": r.detailed_results or {},
                 "created_at": r.created_at.isoformat() if r.created_at else None,
+                "answers": r.answers,
+                "test_snapshot": r.test_snapshot,
             }
             for r in results
         ],
         "total": total_count,
         "skip": skip,
         "limit": limit
+    }
+
+
+@router.get("/{result_id}")
+async def get_single_result(
+    result_id: int,
+    current_user: User = Depends(check_access_active),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Возвращает детальную информацию по конкретному результату.
+    """
+    query = (
+        select(TestResult)
+        .where(TestResult.id == result_id)
+        .options(selectinload(TestResult.test))
+    )
+    result = await db.execute(query)
+    res_obj = result.scalars().first()
+    
+    if not res_obj:
+        raise HTTPException(status_code=404, detail="Результат не найден")
+        
+    if res_obj.test.psychologist_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+        
+    return {
+        "id": str(res_obj.id),
+        "test_id": str(res_obj.test_id),
+        "test_title": res_obj.test.title,
+        "client_name": res_obj.client_fio,
+        "client_email": res_obj.guest_email,
+        "completed_at": res_obj.created_at.isoformat() if res_obj.created_at else None,
+        "answers": res_obj.answers,
+        "detailed_results": res_obj.detailed_results or {},
+        "total_points": res_obj.total_points,
+        "interpretation": res_obj.interpretation_result,
+        "test_snapshot": res_obj.test_snapshot,
     }
 
 
@@ -169,11 +220,15 @@ async def get_result_counts(
 ):
     """
     Возвращает словарь {test_id: count} для тестов текущего психолога.
+    Админы видят статистику по всем тестам.
     """
-    rows = await db.execute(
-        select(TestResult.test_id, func.count(TestResult.id))
-        .join(Test, Test.id == TestResult.test_id)
-        .where(Test.psychologist_id == current_user.id)
-        .group_by(TestResult.test_id)
-    )
+    from app.models.enums import UserRole
+    
+    query = select(TestResult.test_id, func.count(TestResult.id)).join(Test, Test.id == TestResult.test_id)
+    
+    if current_user.role != UserRole.admin:
+        query = query.where(Test.psychologist_id == current_user.id)
+        
+    query = query.group_by(TestResult.test_id)
+    rows = await db.execute(query)
     return {str(test_id): count for test_id, count in rows.all()}

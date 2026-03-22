@@ -35,6 +35,11 @@ const questionSchema = z.object({
 const testSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
   description: z.string().optional(),
+  report_config: z.object({
+    show_table: z.boolean(),
+    show_chart: z.boolean(),
+    show_interpretation: z.boolean(),
+  }),
   questions: z.array(questionSchema).min(1, 'Добавьте хотя бы один вопрос'),
 })
 
@@ -61,6 +66,11 @@ export default function EditTestPage() {
     defaultValues: {
       title: '',
       description: '',
+      report_config: {
+        show_table: true,
+        show_chart: false,
+        show_interpretation: true,
+      },
       questions: [],
     },
   })
@@ -75,6 +85,11 @@ export default function EditTestPage() {
     reset({
       title: test.title,
       description: test.description || '',
+      report_config: test.report_config || {
+        show_table: true,
+        show_chart: false,
+        show_interpretation: true,
+      },
       questions: test.questions.map((question) => ({
         id: question.id,
         text: question.text,
@@ -94,6 +109,7 @@ export default function EditTestPage() {
       await testsApi.update(testId, {
         title: data.title,
         description: data.description,
+        report_config: data.report_config,
         questions: data.questions.map((question, qIndex) => ({
           id: question.id || `q-${qIndex + 1}`,
           text: question.text,
@@ -151,6 +167,50 @@ export default function EditTestPage() {
                 <Textarea id="description" rows={3} {...register('description')} />
               </Field>
             </FieldGroup>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Настройки отчёта</CardTitle>
+            <CardDescription>Выберите, какие элементы будут включены в результат для клиента</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-3">
+               <div className="flex items-center space-x-2 border rounded-lg p-4 bg-muted/20">
+                  <input 
+                    type="checkbox" 
+                    id="show_table" 
+                    {...register('report_config.show_table')} 
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="show_table" className="text-sm font-medium leading-none cursor-pointer">
+                    Таблица баллов
+                  </label>
+               </div>
+               <div className="flex items-center space-x-2 border rounded-lg p-4 bg-muted/20">
+                  <input 
+                    type="checkbox" 
+                    id="show_chart" 
+                    {...register('report_config.show_chart')} 
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="show_chart" className="text-sm font-medium leading-none cursor-pointer">
+                    График шкал
+                  </label>
+               </div>
+               <div className="flex items-center space-x-2 border rounded-lg p-4 bg-muted/20">
+                  <input 
+                    type="checkbox" 
+                    id="show_interpretation" 
+                    {...register('report_config.show_interpretation')} 
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="show_interpretation" className="text-sm font-medium leading-none cursor-pointer">
+                    Интерпретация
+                  </label>
+               </div>
+            </div>
           </CardContent>
         </Card>
 

@@ -19,11 +19,10 @@ import { cn } from '@/lib/utils'
 
 const navigation = [
   { name: 'Главная', href: '/dashboard' },
-  { name: 'Мои тесты', href: '/dashboard/tests' },
-  { name: 'Ссылки', href: '/dashboard/links' },
-  { name: 'Результаты', href: '/dashboard/results' },
-  { name: 'Аналитика', href: '/dashboard/analytics' },
-  { name: 'Профиль', href: '/dashboard/profile' },
+  { name: 'Мои тесты', href: '/dashboard/tests', psychologistOnly: true },
+  { name: 'Результаты', href: '/dashboard/results', psychologistOnly: true },
+  { name: 'Аналитика', href: '/dashboard/analytics', adminOnly: true },
+  { name: 'Профиль', href: '/dashboard/profile', psychologistOnly: true },
 ]
 
 export function DashboardHeader() {
@@ -56,6 +55,9 @@ export function DashboardHeader() {
           <nav className="p-4">
             <ul className="space-y-1">
               {navigation.map((item) => {
+                const isAdmin = user?.role === 'admin'
+                if (item.psychologistOnly && isAdmin) return null
+                if (item.adminOnly && !isAdmin) return null
                 const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
                 return (
                   <li key={item.name}>
@@ -88,34 +90,10 @@ export function DashboardHeader() {
           <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
         </Button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                {user?.name?.charAt(0).toUpperCase() || 'U'}
-              </div>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>
-              <div className="flex flex-col">
-                <span>{user?.name}</span>
-                <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/dashboard/profile">
-                <User className="mr-2 h-4 w-4" />
-                Профиль
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleLogout} className="text-destructive">
-              <LogOut className="mr-2 h-4 w-4" />
-              Выйти
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-destructive">
+          <LogOut className="mr-2 h-4 w-4" />
+          <span className="hidden sm:inline">Выйти</span>
+        </Button>
       </div>
     </header>
   )

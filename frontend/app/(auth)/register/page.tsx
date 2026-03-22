@@ -11,17 +11,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
+import { FieldGroup, Field, FieldLabel, FieldError } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
 import { Eye, EyeOff, UserPlus } from 'lucide-react'
 import { authApi } from '@/lib/api/client'
 
 const registerSchema = z
   .object({
-    name: z.string().min(2, 'Имя должно содержать минимум 2 символа'),
-    email: z.string().email('Введите корректный email'),
-    password: z.string().min(8, 'Пароль должен содержать минимум 8 символов'),
-    confirmPassword: z.string(),
+    name: z.string().min(1, 'ФИО обязательно').min(2, 'Имя должно содержать минимум 2 символа'),
+    email: z.string().min(1, 'Email обязателен').email('Введите корректный email'),
+    password: z.string().min(1, 'Пароль обязателен').min(8, 'Пароль должен содержать минимум 8 символов'),
+    confirmPassword: z.string().min(1, 'Подтвердите пароль'),
     specialization: z.string().optional(),
     bio: z.string().max(500, 'Описание должно быть короче 500 символов').optional(),
   })
@@ -43,6 +43,15 @@ export default function RegisterPage() {
     formState: { errors },
   } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
+    mode: 'onTouched',
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      specialization: '',
+      bio: '',
+    },
   })
 
   const onSubmit = async (data: RegisterForm) => {
@@ -75,15 +84,14 @@ export default function RegisterPage() {
         <CardContent>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="name">ФИО</FieldLabel>
+              <FieldLabel htmlFor="name" required>ФИО</FieldLabel>
               <Input id="name" type="text" placeholder="Иван Иванов" autoComplete="name" {...register('name')} />
-              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+              <FieldError errors={[errors.name]} />
             </Field>
-
             <Field>
-              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <FieldLabel htmlFor="email" required>Email</FieldLabel>
               <Input id="email" type="email" placeholder="you@example.com" autoComplete="email" {...register('email')} />
-              {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+              <FieldError errors={[errors.email]} />
             </Field>
 
             <Field>
@@ -98,7 +106,7 @@ export default function RegisterPage() {
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="password">Пароль</FieldLabel>
+              <FieldLabel htmlFor="password" required>Пароль</FieldLabel>
               <div className="relative">
                 <Input
                   id="password"
@@ -123,11 +131,11 @@ export default function RegisterPage() {
                   <span className="sr-only">{showPassword ? 'Скрыть пароль' : 'Показать пароль'}</span>
                 </Button>
               </div>
-              {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
+              <FieldError errors={[errors.password]} />
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="confirmPassword">Подтверждение пароля</FieldLabel>
+              <FieldLabel htmlFor="confirmPassword" required>Подтверждение пароля</FieldLabel>
               <Input
                 id="confirmPassword"
                 type="password"
@@ -135,7 +143,7 @@ export default function RegisterPage() {
                 autoComplete="new-password"
                 {...register('confirmPassword')}
               />
-              {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>}
+              <FieldError errors={[errors.confirmPassword]} />
             </Field>
           </FieldGroup>
         </CardContent>

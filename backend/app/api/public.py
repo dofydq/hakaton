@@ -100,7 +100,7 @@ async def submit_public_test(
     total_score = 0.0
     scale_scores: Dict[str, float] = {}
     
-    for q_id, q_ans in data.answers.items():
+    for q_id, q_ans in data.answers_json.items():
         q_model = questions_map.get(str(q_id))
         if not q_model:
             continue
@@ -139,9 +139,9 @@ async def submit_public_test(
     new_result = TestResult(
         test_id=test.id,
         link_id=test_link.id,
-        client_fio=data.client_name,
+        client_fio=data.client_fio,
         client_email=data.client_email,
-        answers=data.answers,
+        answers=data.answers_json,
         total_points=round(total_score, 2),
         detailed_results={k: round(v, 3) for k, v in scale_scores.items()},
         interpretation_result=interpretation_text,

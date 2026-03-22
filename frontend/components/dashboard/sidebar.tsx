@@ -8,11 +8,10 @@ import { Brain, LayoutDashboard, FileText, Link2, Users, BarChart3, User, Shield
 
 const navigation = [
   { name: 'Главная', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Мои тесты', href: '/dashboard/tests', icon: FileText },
-  { name: 'Ссылки', href: '/dashboard/links', icon: Link2 },
-  { name: 'Результаты', href: '/dashboard/results', icon: Users },
-  { name: 'Аналитика', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: 'Профиль', href: '/dashboard/profile', icon: User },
+  { name: 'Мои тесты', href: '/dashboard/tests', icon: FileText, psychologistOnly: true },
+  { name: 'Результаты', href: '/dashboard/results', icon: Users, psychologistOnly: true },
+  { name: 'Аналитика', href: '/dashboard/analytics', icon: BarChart3, adminOnly: true },
+  { name: 'Профиль', href: '/dashboard/profile', icon: User, psychologistOnly: true },
 ]
 
 const adminNavigation = [{ name: 'Панель администратора', href: '/admin', icon: Shield }]
@@ -34,6 +33,8 @@ export function DashboardSidebar() {
       <nav className="flex-1 p-4">
         <ul className="space-y-1">
           {navigation.map((item) => {
+            if (item.psychologistOnly && isAdmin) return null
+            if (item.adminOnly && !isAdmin) return null
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
             return (
               <li key={item.name}>

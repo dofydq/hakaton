@@ -15,7 +15,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Empty } from '@/components/ui/empty'
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from '@/components/ui/empty'
 import {
   Plus,
   Search,
@@ -24,10 +30,14 @@ import {
   Link2,
   Trash2,
   Upload,
+  Download,
+  Share2,
   FileText,
   Users,
+  Copy,
+  ExternalLink,
 } from 'lucide-react'
-import { testsApi, Test } from '@/lib/api/client'
+import { testsApi, linksApi, Test, TestLink } from '@/lib/api/client'
 import { useAuthStore } from '@/lib/store/auth-store'
 import { toast } from 'sonner'
 
@@ -42,7 +52,7 @@ export default function TestsPage() {
   )
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Удалить этот тест?')) return
+    if (!confirm('Удалить этот тест? Всё связанные результаты также будут удалены.')) return
     
     try {
       await testsApi.delete(id)
@@ -51,6 +61,37 @@ export default function TestsPage() {
     } catch (error) {
       toast.error('Не удалось удалить тест')
     }
+  }
+
+  const handleExport = (test: Test) => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(test, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `${test.title.replace(/\s+/g, '_')}_export.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+    toast.success('Тест экспортирован');
+  }
+
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const content = JSON.parse(e.target?.result as string);
+        await testsApi.import(content);
+        mutate();
+        toast.success('Тест успешно импортирован');
+      } catch (err) {
+        toast.error('Ошибка при импорте. Убедитесь, что формат файла верный.');
+      }
+    };
+    reader.readAsText(file);
+    // Reset file input
+    event.target.value = '';
   }
 
   return (
@@ -64,10 +105,19 @@ export default function TestsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" disabled={!isSubscriptionActive()}>
-            <Upload className="mr-2 h-4 w-4" />
-            Импорт
-          </Button>
+          <div className="relative">
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleImport}
+              className="absolute inset-0 z-10 cursor-pointer opacity-0"
+              disabled={!isSubscriptionActive()}
+            />
+            <Button variant="outline" disabled={!isSubscriptionActive()}>
+              <Upload className="mr-2 h-4 w-4" />
+              Импорт
+            </Button>
+          </div>
           <Button asChild disabled={!isSubscriptionActive()}>
             <Link href="/dashboard/tests/new">
               <Plus className="mr-2 h-4 w-4" />
@@ -106,16 +156,22 @@ export default function TestsPage() {
       ) : filteredTests && filteredTests.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredTests.map((test) => (
-            <TestCard key={test.id} test={test} onDelete={handleDelete} />
+            <TestCard 
+              key={test.id} 
+              test={test} 
+              onDelete={handleDelete} 
+              onExport={() => handleExport(test)}
+            />
           ))}
         </div>
       ) : (
-        <Empty
-          icon={FileText}
-          title="Тесты не найдены"
-          description={search ? 'Попробуйте другой запрос' : 'Создайте первый психологический тест'}
-        >
-          <Button asChild>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><FileText className="h-6 w-6" /></EmptyMedia>
+            <EmptyTitle>Тесты не найдены</EmptyTitle>
+            <EmptyDescription>{search ? 'Попробуйте другой запрос' : 'Создайте первый психологический тест'}</EmptyDescription>
+          </EmptyHeader>
+          <Button asChild className="mt-4">
             <Link href="/dashboard/tests/new">
               <Plus className="mr-2 h-4 w-4" />
               Создать тест
@@ -127,7 +183,41 @@ export default function TestsPage() {
   )
 }
 
-function TestCard({ test, onDelete }: { test: Test; onDelete: (id: string) => void }) {
+function TestCard({ 
+  test, 
+  onDelete, 
+  onExport 
+}: { 
+  test: Test; 
+  onDelete: (id: string) => void;
+  onExport: () => void;
+}) {
+  const [sharing, setSharing] = useState(false)
+
+  const handleShare = async () => {
+    setSharing(true)
+    try {
+      // 1. Check for existing links
+      const links = await linksApi.list()
+      let link = links.find(l => String(l.test_id) === String(test.id))
+      
+      // 2. Create if none
+      if (!link) {
+        link = await linksApi.create({ test_id: String(test.id), label: 'Основная ссылка' })
+      }
+      
+      // 3. Copy to clipboard
+      if (link && link.url) {
+        await navigator.clipboard.writeText(link.url)
+        toast.success('Ссылка скопирована в буфер обмена')
+      }
+    } catch (error) {
+      toast.error('Не удалось создать ссылку для совместного использования')
+    } finally {
+      setSharing(false)
+    }
+  }
+
   return (
     <Card className="group transition-shadow hover:shadow-md">
       <CardHeader className="flex flex-row items-start justify-between">
@@ -141,14 +231,14 @@ function TestCard({ test, onDelete }: { test: Test; onDelete: (id: string) => vo
             </Link>
           </CardTitle>
           <CardDescription>
-            {test.questions.length} questions
+            {test.questions?.length || 0} вопросов
           </CardDescription>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <MoreVertical className="h-4 w-4" />
-              <span className="sr-only">Open menu</span>
+              <span className="sr-only">Открыть меню</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -158,11 +248,13 @@ function TestCard({ test, onDelete }: { test: Test; onDelete: (id: string) => vo
                 Редактировать
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`/dashboard/links?test_id=${test.id}`}>
-                <Link2 className="mr-2 h-4 w-4" />
-                Создать ссылку
-              </Link>
+            <DropdownMenuItem onClick={handleShare} disabled={sharing}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Поделиться (копировать)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Экспорт (JSON)
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem 
@@ -176,14 +268,35 @@ function TestCard({ test, onDelete }: { test: Test; onDelete: (id: string) => vo
         </DropdownMenu>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Users className="h-4 w-4" />
-            <span>{test.session_count} sessions</span>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Users className="h-4 w-4" />
+              <span>{test.session_count} сессий</span>
+            </div>
+            <Badge variant="secondary">
+              {new Date(test.created_at).toLocaleDateString()}
+            </Badge>
           </div>
-          <Badge variant="secondary">
-            {new Date(test.created_at).toLocaleDateString()}
-          </Badge>
+          
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1" 
+              onClick={handleShare}
+              disabled={sharing}
+            >
+              <Copy className="mr-2 h-3.5 w-3.5" />
+              Ссылка
+            </Button>
+            <Button asChild variant="outline" size="sm" className="flex-1">
+              <Link href={`/dashboard/results?test_id=${test.id}`}>
+                <FileText className="mr-2 h-3.5 w-3.5" />
+                Результаты
+              </Link>
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

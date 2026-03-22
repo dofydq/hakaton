@@ -1,6 +1,16 @@
 import { useAuthStore, type User } from '@/lib/store/auth-store'
+import { toast } from 'sonner'
 
-const API_BASE = '/api'
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    // Мы в браузере — используем localhost
+    return 'http://localhost:8000';
+  }
+  // Мы на сервере (SSR/Docker) — используем имя сервиса
+  return 'http://backend:8000';
+};
+
+const API_BASE = getBaseUrl() + '/api';
 
 interface ApiError {
   status?: 'error'
@@ -27,6 +37,11 @@ interface BackendTest {
   id: number
   title: string
   description?: string | null
+  report_config?: {
+    show_table: boolean
+    show_chart: boolean
+    show_interpretation: boolean
+  }
   logic_tree_json: Array<{
     title?: string
     questions?: Array<{
@@ -57,6 +72,8 @@ interface BackendResultItem {
   client_email?: string
   total_points?: number
   detailed_results?: Record<string, number>
+  answers?: Record<string, any>
+  test_snapshot?: any
   created_at?: string
 }
 
@@ -128,14 +145,14 @@ function buildLogicTree(questions: Question[]): BackendTest['logic_tree_json'] {
   return [
     {
       title: 'Основной раздел',
-      questions: questions.map((question) => ({
-        id: question.id,
+      questions: questions.map((question, qIndex) => ({
+        id: question.id || `q-${qIndex}-${Math.random().toString(36).slice(2, 8)}`,
         type: question.type === 'multiple' ? 'multiple_choice' : 'single_choice',
         title: question.text,
         description: '',
         isRequired: true,
-        options: question.options.map((option) => ({
-          id: option.id,
+        options: question.options.map((option, oIndex) => ({
+          id: option.id || `o-${qIndex}-${oIndex}-${Math.random().toString(36).slice(2, 8)}`,
           text: option.text,
           points: option.value,
           weight: 1,
@@ -149,15 +166,15 @@ function makeId(prefix: string, index: number): string {
   return `${prefix}-${index + 1}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-function normalizeQuestions(questions: Array<{ text: string; type: 'single' | 'multiple'; options: Array<{ text: string; value: number }> }>): Question[] {
-  return questions.map((question, qIndex) => ({
-    id: makeId('q', qIndex),
-    text: question.text,
-    type: question.type,
-    options: question.options.map((option, oIndex) => ({
-      id: makeId(`q${qIndex + 1}o`, oIndex),
-      text: option.text,
-      value: option.value,
+function normalizeQuestions(questions: any[]): Question[] {
+  return (questions || []).map((question, qIndex) => ({
+    id: question.id || makeId('q', qIndex),
+    text: question.text || '',
+    type: question.type || 'single',
+    options: (question.options || []).map((option: any, oIndex: number) => ({
+      id: option.id || makeId(`q${qIndex + 1}o`, oIndex),
+      text: option.text || '',
+      value: typeof option.value === 'number' ? option.value : oIndex,
     })),
   }))
 }
@@ -174,18 +191,26 @@ class ApiClient {
 
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
-      let errorMessage = 'Произошла непредвиденная ошибка'
+      let errorMessage = 'Произошла ошибка при запросе к серверу'
       try {
-        const error: ApiError = await response.json()
-        errorMessage =
-          error.detail ||
-          error.message ||
-          (Array.isArray(error.details) && error.details.length > 0
-            ? typeof error.details[0] === 'string'
-              ? error.details[0]
-              : error.details[0]?.message || errorMessage
-            : errorMessage)
+        const errorData: any = await response.json()
+        if (errorData.detail) {
+          if (Array.isArray(errorData.detail)) {
+            const firstError = errorData.detail[0]
+            errorMessage = typeof firstError === 'string' 
+              ? firstError 
+              : (firstError.msg || firstError.message || errorMessage)
+          } else {
+            errorMessage = errorData.detail
+          }
+        } else if (errorData.message) {
+          errorMessage = errorData.message
+        }
       } catch {}
+
+      if (errorMessage && typeof window !== 'undefined') {
+        toast.error(errorMessage)
+      }
 
       if (response.status === 401) {
         useAuthStore.getState().logout()
@@ -263,6 +288,12 @@ export interface Test {
   title: string
   description?: string
   questions: Question[]
+  report_config?: {
+    show_table: boolean
+    show_chart: boolean
+    show_interpretation: boolean
+  }
+  access_settings_json?: any
   created_at: string
   updated_at: string
   session_count: number
@@ -293,6 +324,10 @@ export interface TestResult {
   client_name?: string
   client_email?: string
   completed_at: string
+  total_points?: number
+  answers?: Record<string, any>
+  detailed_results?: Record<string, number>
+  test_snapshot?: any
   scores: Record<string, number>
 }
 
@@ -321,9 +356,7 @@ export const authApi = {
     const formData = new URLSearchParams()
     formData.set('username', data.email)
     formData.set('password', data.password)
-    return api.post<{ access_token: string; token_type: string }>('/auth/login', formData, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    })
+    return api.post<{ access_token: string; token_type: string }>('/auth/login', formData)
   },
 
   async me() {
@@ -351,8 +384,8 @@ export const authApi = {
 export const testsApi = {
   async list(): Promise<Test[]> {
     const [tests, counts] = await Promise.all([
-      api.get<BackendTest[]>('/tests'),
-      api.get<Record<string, number>>('/results/counts').catch(() => ({})),
+      api.get<BackendTest[]>('/tests/'),
+      api.get<Record<string, number>>('/results/counts').catch(() => ({} as Record<string, number>)),
     ])
 
     return tests.map((test) => ({
@@ -367,11 +400,12 @@ export const testsApi = {
   },
 
   async get(id: string): Promise<Test> {
-    const test = await api.get<BackendTest>(`/tests/${id}`)
+    const test = await api.get<BackendTest>(`/tests/${id}/`)
     return {
       id: String(test.id),
       title: test.title,
       description: test.description || undefined,
+      report_config: test.report_config || { show_table: true, show_chart: false, show_interpretation: true },
       questions: flattenQuestions(test.logic_tree_json),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -379,34 +413,45 @@ export const testsApi = {
     }
   },
 
-  async create(data: Partial<Test> & { questions?: Array<{ text: string; type: 'single' | 'multiple'; options: Array<{ text: string; value: number }> }> }) {
-    const questions = data.questions ? normalizeQuestions(data.questions) : data.questions
+  async create(data: Partial<Test>) {
+    const questions = normalizeQuestions(data.questions || [])
     const payload = {
       title: data.title || 'Тест без названия',
       description: data.description || '',
-      access_settings_json: null,
-      report_config: { show_table: true, show_chart: false, show_interpretation: true },
-      logic_tree_json: buildLogicTree(questions || []),
+      access_settings_json: data.access_settings_json || null,
+      report_config: data.report_config || { show_table: true, show_chart: false, show_interpretation: true },
+      logic_tree_json: buildLogicTree(questions),
       calculation_rules_json: {},
     }
-    const created = await api.post<BackendTest>('/tests', payload)
-    return this.get(String(created.id))
+    const created = await api.post<BackendTest>('/tests/', payload)
+    return {
+      id: String(created.id),
+      title: created.title,
+      description: created.description || undefined,
+      report_config: created.report_config || { show_table: true, show_chart: false, show_interpretation: true },
+      questions: flattenQuestions(created.logic_tree_json),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      session_count: 0,
+    }
   },
 
   async update(id: string, data: Partial<Test>) {
+    const questions = normalizeQuestions(data.questions || [])
     const payload = {
       title: data.title || 'Тест без названия',
       description: data.description || '',
-      access_settings_json: null,
-      report_config: { show_table: true, show_chart: false, show_interpretation: true },
-      logic_tree_json: buildLogicTree(data.questions || []),
+      access_settings_json: data.access_settings_json || null,
+      report_config: data.report_config || { show_table: true, show_chart: false, show_interpretation: true },
+      logic_tree_json: buildLogicTree(questions),
       calculation_rules_json: {},
     }
-    const updated = await api.put<BackendTest>(`/tests/${id}`, payload)
+    const updated = await api.put<BackendTest>(`/tests/${id}/`, payload)
     return {
       id: String(updated.id),
       title: updated.title,
       description: updated.description || undefined,
+      report_config: updated.report_config || { show_table: true, show_chart: false, show_interpretation: true },
       questions: flattenQuestions(updated.logic_tree_json),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -414,15 +459,27 @@ export const testsApi = {
     }
   },
 
-  delete: (id: string) => api.delete(`/tests/${id}`),
+  delete: (id: string) => api.delete(`/tests/${id}/`),
+
+  async import(data: any) {
+    const payload = {
+      title: data.title || 'Импортированный тест',
+      description: data.description || '',
+      logic_tree_json: data.logic_tree_json || buildLogicTree(data.questions || []),
+      calculation_rules_json: data.calculation_rules_json || {},
+      report_config: data.report_config || { show_table: true, show_chart: false, show_interpretation: true },
+      interpretations: data.interpretations || []
+    }
+    return api.post('/tests/import', payload)
+  }
 }
 
 export const linksApi = {
   async list(): Promise<TestLink[]> {
     const [links, tests, resultsByTest] = await Promise.all([
-      api.get<BackendLink[]>('/links'),
+      api.get<BackendLink[]>('/links/'),
       testsApi.list(),
-      api.get<Record<string, number>>('/results/counts').catch(() => ({})),
+      api.get<Record<string, number>>('/results/counts/').catch(() => ({} as Record<string, number>)),
     ])
 
     const testsMap = new Map(tests.map((test) => [test.id, test]))
@@ -440,7 +497,7 @@ export const linksApi = {
   },
 
   create: (data: { test_id: string; label: string }) =>
-    api.post<TestLink>('/links', { test_id: Number(data.test_id), label: data.label }),
+    api.post<TestLink>('/links/', { test_id: Number(data.test_id), label: data.label }),
 }
 
 export const resultsApi = {
@@ -458,6 +515,10 @@ export const resultsApi = {
           client_name: result.client_fio || undefined,
           client_email: result.client_email || undefined,
           completed_at: result.created_at || new Date().toISOString(),
+          total_points: result.total_points,
+          answers: result.answers,
+          detailed_results: result.detailed_results,
+          test_snapshot: result.test_snapshot,
           scores: result.detailed_results || {},
         }))
       }),
@@ -539,8 +600,8 @@ export const publicApi = {
 
   submit: (data: {
     link_id: string
-    answers: Record<string, string | string[]>
-    client_name: string
-    client_email: string
+    answers_json: Record<string, string | string[]>
+    client_fio: string
+    client_email?: string
   }) => api.post<{ message: string; result_id?: string }>('/public/submit', data),
 }

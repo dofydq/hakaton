@@ -1,7 +1,7 @@
 import asyncio
 import sys
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Добавляем путь к корню, чтобы импорты из app работали
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -53,7 +53,7 @@ async def init_db():
                     role=UserRole.admin,
                     specialization="System Architect",
                     is_active=True,
-                    access_until=datetime.utcnow() + timedelta(days=365)
+                    access_until=datetime.now(timezone.utc) + timedelta(days=365)
                 )
                 session.add(admin)
                 await session.flush()

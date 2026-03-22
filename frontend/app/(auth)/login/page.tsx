@@ -10,15 +10,15 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
+import { FieldGroup, Field, FieldLabel, FieldError } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
 import { Eye, EyeOff, LogIn } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/auth-store'
 import { authApi } from '@/lib/api/client'
 
 const loginSchema = z.object({
-  email: z.string().email('Введите корректный email'),
-  password: z.string().min(6, 'Пароль должен содержать минимум 6 символов'),
+  email: z.string().min(1, 'Email обязателен').email('Введите корректный email'),
+  password: z.string().min(1, 'Пароль обязателен').min(6, 'Пароль должен содержать минимум 6 символов'),
 })
 
 type LoginForm = z.infer<typeof loginSchema>
@@ -35,6 +35,11 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
+    mode: 'onTouched',
+    defaultValues: {
+      email: '',
+      password: '',
+    },
   })
 
   const onSubmit = async (data: LoginForm) => {
@@ -46,17 +51,25 @@ export default function LoginPage() {
       })
 
       const userResponse = await authApi.me().catch(() => authApi.bootstrapUser(data.email, tokenResponse.access_token))
+      
+      // Сначала сохраняем данные (синхронная запись куки уже в методе login сттора)
       login(userResponse.user, tokenResponse.access_token)
 
       toast.success('Вход выполнен')
 
-      if (userResponse.user.status === 'pending') {
-        router.push('/pending')
-      } else if (userResponse.user.role === 'admin') {
-        router.push('/admin')
-      } else {
-        router.push('/dashboard')
-      }
+      const targetPath = userResponse.user.status === 'pending' 
+        ? '/pending' 
+        : userResponse.user.role === 'admin' 
+          ? '/admin' 
+          : '/dashboard'
+      
+      // Плавный переход
+      import('react').then(({ startTransition }) => {
+        startTransition(() => {
+          router.replace(targetPath)
+          router.refresh()
+        })
+      })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось войти')
     } finally {
@@ -74,7 +87,7 @@ export default function LoginPage() {
         <CardContent>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <FieldLabel htmlFor="email" required>Email</FieldLabel>
               <Input
                 id="email"
                 type="email"
@@ -82,10 +95,10 @@ export default function LoginPage() {
                 autoComplete="email"
                 {...register('email')}
               />
-              {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+              <FieldError errors={[errors.email]} />
             </Field>
             <Field>
-              <FieldLabel htmlFor="password">Пароль</FieldLabel>
+              <FieldLabel htmlFor="password" required>Пароль</FieldLabel>
               <div className="relative">
                 <Input
                   id="password"
@@ -110,14 +123,23 @@ export default function LoginPage() {
                   <span className="sr-only">{showPassword ? 'Скрыть пароль' : 'Показать пароль'}</span>
                 </Button>
               </div>
-              {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
+              <FieldError errors={[errors.password]} />
             </Field>
           </FieldGroup>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? <Spinner className="mr-2" /> : <LogIn className="mr-2 h-4 w-4" />}
-            Войти
+            {isLoading ? (
+              <>
+                <Spinner className="mr-2" />
+                Вход...
+              </>
+            ) : (
+              <>
+                <LogIn className="mr-2 h-4 w-4" />
+                Войти
+              </>
+            )}
           </Button>
           <p className="text-center text-sm text-muted-foreground">
             Нет аккаунта?{' '}

@@ -22,11 +22,13 @@ interface AuthState {
   token: string | null
   isAuthenticated: boolean
   isLoading: boolean
+  isInitialized: boolean
   setUser: (user: User | null) => void
   setToken: (token: string | null) => void
   login: (user: User, token: string) => void
   logout: () => void
   setLoading: (loading: boolean) => void
+  setInitialized: (initialized: boolean) => void
   isSubscriptionActive: () => boolean
   isPending: () => boolean
 }
@@ -37,13 +39,35 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      isLoading: true,
+      isLoading: false,
+      isInitialized: false,
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
-      setToken: (token) => set({ token }),
-      login: (user, token) => set({ user, token, isAuthenticated: true, isLoading: false }),
-      logout: () => set({ user: null, token: null, isAuthenticated: false, isLoading: false }),
+      setToken: (token) => {
+        set({ token })
+        if (typeof window !== 'undefined') {
+          if (token) {
+            document.cookie = `access_token=${token}; path=/; max-age=86400; SameSite=Lax`
+          } else {
+            document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+          }
+        }
+      },
+      login: (user, token) => {
+        set({ user, token, isAuthenticated: true, isLoading: false, isInitialized: true })
+        if (typeof window !== 'undefined') {
+          document.cookie = `access_token=${token}; path=/; max-age=86400; SameSite=Lax`
+        }
+      },
+      logout: () => {
+        set({ user: null, token: null, isAuthenticated: false, isLoading: false, isInitialized: true })
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('profdnk-auth')
+          document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+        }
+      },
       setLoading: (isLoading) => set({ isLoading }),
+      setInitialized: (isInitialized) => set({ isInitialized }),
 
       isSubscriptionActive: () => {
         const { user } = get()
@@ -65,6 +89,9 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state) state.setInitialized(true)
+      },
     },
   ),
 )

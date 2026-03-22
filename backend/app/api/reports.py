@@ -211,15 +211,27 @@ async def download_test_result_report(
 
     test_result, test, owner = row
 
-    if test_result.user_id is not None:
-        if not current_user:
-            raise HTTPException(status_code=401, detail="Требуется авторизация")
-        if (
-            current_user.id != test_result.user_id
-            and current_user.id != test.psychologist_id
-            and current_user.role != UserRole.admin
-        ):
-            raise HTTPException(status_code=403, detail="Нет доступа к отчёту")
+    # Логика доступа (АККУРАТНО):
+    # - Гость (current_user is None) может скачивать ТОЛЬКО свой гостевой тест (user_id is None).
+    # - Залогиненный рядовой юзер может скачивать ТОЛЬКО свои тесты.
+    # - Психолог может скачивать результаты своих тестов.
+    # - Админ может скачивать всё.
+    
+    is_admin = current_user and current_user.role == UserRole.admin
+    is_psychologist = current_user and current_user.id == test.psychologist_id
+    is_owner = current_user and test_result.user_id is not None and current_user.id == test_result.user_id
+    is_guest_result = test_result.user_id is None
+    
+    if is_admin or is_psychologist or is_owner:
+        pass # Доступ разрешен
+    elif not current_user and is_guest_result:
+        pass # Разрешаем гостю (анониму) скачать свой гостевой отчет по секретному UUID
+    elif current_user:
+        # Авторизованный левый юзер ломится в чужой/гостевой отчет
+        raise HTTPException(status_code=403, detail="У вас недостаточно прав для просмотра этого отчёта")
+    else:
+        # Аноним ломится в личный отчет пользователя
+        raise HTTPException(status_code=401, detail="Для скачивания личного отчёта требуется авторизация")
 
     _meta = (test_result.answers or {}).get("_metadata", {})
     category_scores = _meta.get("section_scores_percent", {})

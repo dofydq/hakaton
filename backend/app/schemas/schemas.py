@@ -295,6 +295,6 @@ class TestLinkRead(TestLinkBase):
 
 class PublicTestSubmit(BaseModel):
     link_id: str
-    client_name: str
-    client_email: EmailStr
-    answers: Dict[str, Any]  # question_id: answer_value
+    client_fio: str
+    client_email: Optional[EmailStr] = None
+    answers_json: Dict[str, Any]  # question_id: answer_value

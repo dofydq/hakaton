@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import Depends, HTTPException, status
 from app.api.auth import get_current_user
 from app.models.models import User
@@ -18,7 +18,7 @@ async def check_access_active(current_user: User = Depends(get_current_user)):
             detail="Subscription required. Contact admin."
         )
         
-    if current_user.access_until < datetime.utcnow():
+    if current_user.access_until < datetime.now(timezone.utc):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Subscription expired. Please renew."
